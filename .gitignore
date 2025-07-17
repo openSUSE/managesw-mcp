@@ -1,0 +1,4 @@
+# ignore binary
+managesw-sw
+# ignore the vendored stuff
+vendor/*
