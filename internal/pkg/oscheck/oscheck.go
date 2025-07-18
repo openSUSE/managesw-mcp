@@ -24,7 +24,7 @@ func NewPkg() syspackage.SysPackage {
 			goto nodpkg
 		}
 		dpkgCmdOut, err := exec.Command(dpkgquery, "-s", "dpkg").Output()
-		if err != nil && len(dpkgCmdOut) > 0 {
+		if err == nil && len(dpkgCmdOut) > 0 {
 			return syspackage.SysPackage{dpkg.New(dpkgpath, dpkgquery)}
 		}
 	}

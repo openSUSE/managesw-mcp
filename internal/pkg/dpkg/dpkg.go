@@ -23,7 +23,11 @@ func New(dpkgbin string, dpkgquery string) DPKG {
 }
 
 func (dpkg DPKG) ListInstalledPackagesSysCall(name string) (lst []syspackage.SysPackageInfo, err error) {
-	pkgList, err := exec.Command(dpkg.dpkgquery, "-W", "-f", "'${binary:Package},${Version},${Installed-Size}\n'", name).CombinedOutput()
+	argsList := []string{"-W", "-f", "'${binary:Package},${Version},${Installed-Size}\n'"}
+	if name != "" {
+		argsList = append(argsList, name)
+	}
+	pkgList, err := exec.Command(dpkg.dpkgquery, argsList...).CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
