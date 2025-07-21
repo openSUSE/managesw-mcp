@@ -25,6 +25,10 @@ func main() {
 		Name:        "list_packages",
 		Description: "List the installed packages on the system.",
 	}, packageMgr.List)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "query_package",
+		Description: "Query information about a package.",
+	}, packageMgr.Query)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 			return server

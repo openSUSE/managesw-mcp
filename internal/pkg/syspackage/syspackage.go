@@ -1,12 +1,12 @@
 package syspackage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
+	"github.com/modelcontextprotocol/go-sdk/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"context"
 )
 
 type SysPackageInfo struct {
@@ -16,6 +16,7 @@ type SysPackageInfo struct {
 }
 type SysPackageInterface interface {
 	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
+	QueryPackageSyscall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
 }
 
 type ListPackageParams struct {
@@ -47,4 +48,82 @@ func (sysPkg SysPackage) List(ctx context.Context, cc *mcp.ServerSession, params
 		Content: txtContentList,
 	}, nil
 
+}
+
+type QueryMode int
+
+const (
+	Info = iota
+	Requires
+	Recommends
+	Obsoletes
+	Changelog
+)
+
+func getQueryModeFromString(modeStr string) QueryMode {
+	switch modeStr {
+	case "info":
+		return Info
+	case "requires":
+		return Requires
+	case "recommends":
+		return Recommends
+	case "obsoletes":
+		return Obsoletes
+	case "changelog":
+		return Changelog
+	default:
+		return -1
+	}
+}
+
+type QueryPackageParams struct {
+	Name  string `json:"name" jsonschema:"Name of the package to be queried."`
+	Mode  string `json:"mode" jsonschema:"The mode of the query"`
+	Lines int    `json:"lines,omitempty" jsonschema:"The number of lines for 'changelog','recommends','obsoletes','requires'. 'lines' < 0 will show all lines."`
+}
+
+func ValidQueryModes() []string {
+	return []string{"info", "requires", "recommends", "obsoletes", "changelog"}
+}
+
+func GetQueryPackageParamsSchema() (*jsonschema.Schema, error) {
+	schema, err := jsonschema.For[QueryPackageParams]()
+	if err != nil {
+		return nil, err
+	}
+	validList := []any{}
+	for _, s := range ValidQueryModes() {
+		validList = append(validList, any(s))
+	}
+	schema.Properties["mode"].Enum = validList
+	schema.Properties["mode"].Default = []byte("info")
+	return schema, nil
+}
+
+func (sysPkg SysPackage) Query(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[QueryPackageParams]) (*mcp.CallToolResultFor[any], error) {
+	if params.Arguments.Name == "" {
+		return nil, fmt.Errorf("name for package to query is mandatory")
+	}
+	mode := getQueryModeFromString(params.Arguments.Mode)
+	if mode == -1 {
+		return nil, fmt.Errorf("invalid mode: %s valid modes: %v", params.Arguments.Mode, ValidQueryModes())
+	}
+	result, err := sysPkg.QueryPackageSyscall(params.Arguments.Name, mode, params.Arguments.Lines)
+	if err != nil {
+		return nil, err
+	}
+
+	// txtContentList := []mcp.Content{}
+	jsonByte, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error on qery, couldn't marshall result: %s", result)
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: string(jsonByte),
+			},
+		},
+	}, nil
 }
