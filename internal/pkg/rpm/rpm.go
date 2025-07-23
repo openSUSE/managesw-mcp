@@ -11,13 +11,30 @@ import (
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
-type RPM struct {
-	rpmpath string
+type RPMType int
+
+const (
+	Zypper = iota
+	Dnf
+)
+
+type PkgMgr struct {
+	mgrtype RPMType
+	mgrpath string
 }
 
-func New(path string) RPM {
+type RPM struct {
+	rpmpath string
+	mgr     PkgMgr
+}
+
+func NewRPM(path string, systype RPMType, mgrpath string) RPM {
 	return RPM{
 		rpmpath: path,
+		mgr: PkgMgr{
+			mgrtype: systype,
+			mgrpath: mgrpath,
+		},
 	}
 }
 

@@ -10,11 +10,14 @@ import (
 )
 
 func NewPkg() syspackage.SysPackage {
-	rpmpath, err := exec.LookPath("rpm")
-	if err == nil {
-		rpmCmdOut, err := exec.Command(rpmpath, "-q", "rpm").Output()
-		if err == nil && len(rpmCmdOut) > 0 {
-			return syspackage.SysPackage{rpm.New(rpmpath)}
+	if rpmpath, err := exec.LookPath("rpm"); err == nil {
+		if err := exec.Command(rpmpath, "-q", "rpm").Run(); err == nil {
+			if zypperPath, err := exec.LookPath("zypper"); err == nil {
+				return syspackage.SysPackage{rpm.NewRPM(rpmpath, rpm.Zypper, zypperPath)}
+			}
+			if dnfPath, err := exec.LookPath("dnf"); err == nil {
+				return syspackage.SysPackage{rpm.NewRPM(rpmpath, rpm.Dnf, dnfPath)}
+			}
 		}
 	}
 	dpkgpath, err := exec.LookPath("dpkg")
