@@ -29,6 +29,10 @@ func main() {
 		Name:        "query_package",
 		Description: "Query information about a package.",
 	}, packageMgr.Query)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_repos",
+		Description: "List the configured package repositories on the system, including details such as their names, URLs, and enabled status. This tool provides an overview of where packages are sourced from.",
+	}, packageMgr.ListRepo)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 			return server

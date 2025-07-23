@@ -66,7 +66,7 @@ func (dpkg DPKG) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPack
 	return lst, nil
 }
 
-func (dpkg DPKG) QueryPackageSyscall(name string, mode syspackage.QueryMode, lines int) (map[string]any, error) {
+func (dpkg DPKG) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines int) (map[string]any, error) {
 	var cmdArgs []string
 	var resultKey string
 	isInfo := false
@@ -125,4 +125,7 @@ func (dpkg DPKG) QueryPackageSyscall(name string, mode syspackage.QueryMode, lin
 	}
 
 	return result, nil
+}
+func (dpkg DPKG) ListReposSysCall() (ret []map[string]any, err error) {
+	return nil, fmt.Errorf("No package manager found")
 }

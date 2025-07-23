@@ -16,7 +16,8 @@ type SysPackageInfo struct {
 }
 type SysPackageInterface interface {
 	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
-	QueryPackageSyscall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
+	QueryPackageSysCall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
+	ListReposSysCall() (ret []map[string]any, err error)
 }
 
 type ListPackageParams struct {
@@ -109,15 +110,31 @@ func (sysPkg SysPackage) Query(ctx context.Context, cc *mcp.ServerSession, param
 	if mode == -1 {
 		return nil, fmt.Errorf("invalid mode: %s valid modes: %v", params.Arguments.Mode, ValidQueryModes())
 	}
-	result, err := sysPkg.QueryPackageSyscall(params.Arguments.Name, mode, params.Arguments.Lines)
+	result, err := sysPkg.QueryPackageSysCall(params.Arguments.Name, mode, params.Arguments.Lines)
 	if err != nil {
 		return nil, err
 	}
-
-	// txtContentList := []mcp.Content{}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
 		return nil, fmt.Errorf("error on qery, couldn't marshall result: %s", result)
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: string(jsonByte),
+			},
+		},
+	}, nil
+}
+
+func (sysPkg SysPackage) ListRepo(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[any]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	result, err := sysPkg.ListReposSysCall()
+	if err != nil {
+		return nil, err
+	}
+	jsonByte, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error on query, couldn't marshall result: %s", result)
 	}
 	return &mcp.CallToolResultFor[any]{
 		Content: []mcp.Content{

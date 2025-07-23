@@ -85,7 +85,7 @@ func (rpm RPM) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackag
 }
 
 // QueryPackageSyscall queries package information.
-func (rpm RPM) QueryPackageSyscall(name string, mode syspackage.QueryMode, lines int) (result map[string]any, err error) {
+func (rpm RPM) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines int) (result map[string]any, err error) {
 	var cmdArgs []string
 	var resultKey string
 
@@ -141,4 +141,15 @@ func (rpm RPM) QueryPackageSyscall(name string, mode syspackage.QueryMode, lines
 	}
 
 	return result, nil
+}
+
+func (rpm RPM) ListReposSysCall() ([]map[string]any, error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return listReposZypper()
+	case Dnf:
+		return listReposDnf()
+	default:
+		return nil, fmt.Errorf("No rpm package manager installed")
+	}
 }

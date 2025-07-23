@@ -11,6 +11,9 @@ type NoPkg struct{}
 func (n NoPkg) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackageInfo, error) {
 	return []syspackage.SysPackageInfo{}, fmt.Errorf("No package manager found")
 }
-func (n NoPkg) QueryPackageSyscall(name string, mode syspackage.QueryMode, lines int) (ret map[string]any, err error) {
+func (n NoPkg) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines int) (ret map[string]any, err error) {
 	return ret, fmt.Errorf("No package manager found")
+}
+func (n NoPkg) ListReposSysCall() (ret []map[string]any, err error) {
+	return nil, fmt.Errorf("No package manager found")
 }

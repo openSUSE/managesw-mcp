@@ -1,4 +1,4 @@
 # ignore binary
-managesw-sw
+managesw-mcp
 # ignore the vendored stuff
 vendor/*
