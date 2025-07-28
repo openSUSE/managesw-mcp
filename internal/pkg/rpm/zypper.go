@@ -1,13 +1,19 @@
 package rpm
 
 import (
+	"fmt"
 	"os/exec"
 
 	"github.com/beevik/etree"
+	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
-func listReposZypper() ([]map[string]any, error) {
-	cmd := exec.Command("zypper", "--xmlout", "-s", "0", "lr", "-d")
+func (rpm RPM) listReposZypper(name string) ([]map[string]any, error) {
+	args := []string{"--xmlout", "-s", "0", "lr"}
+	if name != "" {
+		args = append(args, name)
+	}
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -29,6 +35,45 @@ func listReposZypper() ([]map[string]any, error) {
 		}
 		result = append(result, repoMap)
 	}
-
 	return result, nil
+}
+
+func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]any, error) {
+	repos, err := rpm.listReposZypper(params.Name)
+	repoExists := true
+	if err != nil {
+		repoExists = false
+	}
+	if repoExists {
+		zypperArgs := []string{"mr"}
+		if !params.Disable {
+			zypperArgs = append(zypperArgs, "-e")
+		} else {
+			zypperArgs = append(zypperArgs, "-d")
+		}
+		if params.Name != "" {
+			zypperArgs = append(zypperArgs, "-n", params.Name)
+		}
+		zypperArgs = append(zypperArgs, params.Name)
+		cmd := exec.Command(rpm.mgr.mgrpath, zypperArgs...)
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+	} else {
+		cmd := exec.Command(rpm.mgr.mgrpath, "ar", "-f", params.Url, params.Name)
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	repos, err = rpm.listReposZypper(params.Name)
+	if err != nil {
+		return nil, err
+	}
+	if len(repos) < 1 {
+		return nil, fmt.Errorf("couldn't get repo %s", params.Name)
+	} else {
+		return repos[0], nil
+	}
+
 }

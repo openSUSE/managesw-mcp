@@ -17,7 +17,8 @@ type SysPackageInfo struct {
 type SysPackageInterface interface {
 	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
 	QueryPackageSysCall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
-	ListReposSysCall() (ret []map[string]any, err error)
+	ListReposSysCall(name string) (ret []map[string]any, err error)
+	ModifyRepoSyCall(params ModifyRepoParams) (ret []map[string]any, err error)
 }
 
 type ListPackageParams struct {
@@ -127,8 +128,12 @@ func (sysPkg SysPackage) Query(ctx context.Context, cc *mcp.ServerSession, param
 	}, nil
 }
 
-func (sysPkg SysPackage) ListRepo(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[any]) (toolRes *mcp.CallToolResultFor[any], err error) {
-	result, err := sysPkg.ListReposSysCall()
+type ListReposParam struct {
+	Name string `json:"name,omitempty" jsonschema:"Name of the repository to list. When omitted all repos are listed."`
+}
+
+func (sysPkg SysPackage) ListRepo(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[ListPackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	result, err := sysPkg.ListReposSysCall(params.Arguments.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -143,4 +148,11 @@ func (sysPkg SysPackage) ListRepo(ctx context.Context, cc *mcp.ServerSession, pa
 			},
 		},
 	}, nil
+}
+
+type ModifyRepoParams struct {
+	Name       string `json:"name" jsonschema:"Name of the rpository"`
+	Disable    bool   `json:"disable,omitempty" jsonschema:"Disable the respository"`
+	Url        string `json:"url,omitempty" jsonschema:"The uri used for this repository. Use http[s]://url for remote repositories or the full pathname for a local repository."`
+	NoGPGCheck bool   `json:"nogpg,omitempty" jsonschema:"Disable the GPG signature check for the repository"`
 }

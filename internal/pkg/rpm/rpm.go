@@ -153,3 +153,14 @@ func (rpm RPM) ListReposSysCall() ([]map[string]any, error) {
 		return nil, fmt.Errorf("No rpm package manager installed")
 	}
 }
+
+func (rpm RPM) ModifyRepoSysCall(params syspackage.ModifyRepoParams) (ret map[string]any, err error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return modReposZypper(params)
+	case Dnf:
+		return modReposDnf(params)
+	default:
+		return nil, fmt.Errorf("No rpm package manager installed")
+	}
+}
