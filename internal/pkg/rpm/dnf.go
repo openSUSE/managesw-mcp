@@ -103,3 +103,43 @@ func (rpm RPM) refreshReposDnf(name string) error {
 	}
 	return nil
 }
+
+func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+	args := []string{"search"}
+	if len(params.Repos) > 0 {
+		for _, repo := range params.Repos {
+			args = append(args, "--repo", repo)
+		}
+	}
+	args = append(args, params.Name)
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+
+	var packages []map[string]any
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	var currentPackage map[string]any
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "=======") {
+			if currentPackage != nil {
+				packages = append(packages, currentPackage)
+			}
+			currentPackage = make(map[string]any)
+		} else if currentPackage != nil {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+				currentPackage[key] = value
+			}
+		}
+	}
+	if currentPackage != nil {
+		packages = append(packages, currentPackage)
+	}
+
+	return packages, nil
+}

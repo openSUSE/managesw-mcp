@@ -198,3 +198,14 @@ func (rpm RPM) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]
 		return nil, fmt.Errorf("No rpm package manager installed")
 	}
 }
+
+func (rpm RPM) SearchPackage(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return rpm.searchPackagesZypper(params)
+	case Dnf:
+		return rpm.searchPackagesDnf(params)
+	default:
+		return nil, fmt.Errorf("No rpm package manager installed")
+	}
+}

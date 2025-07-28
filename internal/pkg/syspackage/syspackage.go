@@ -22,6 +22,12 @@ type SysPackageInterface interface {
 	ModifyRepoSysCall(params ModifyRepoParams) (ret map[string]any, err error)
 	ListPatchesSysCall(params ListPatchesParams) ([]map[string]any, error)
 	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
+	SearchPackage(params SearchPackageParams) ([]map[string]any, error)
+}
+
+type SearchPackageParams struct {
+	Name  string   `json:"name" jsonschema:"Name of the package to search for."`
+	Repos []string `json:"repos,omitempty" jsonschema:"A list of repositories to search in. This is optional and should only be used if explicitly requested. If not supplied, all enabled repositories are used."`
 }
 
 type ListPackageParams struct {
@@ -227,6 +233,24 @@ func (sysPkg SysPackage) ListPatches(ctx context.Context, cc *mcp.ServerSession,
 
 func (sysPkg SysPackage) InstallPatches(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[InstallPatchesParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
 	result, err := sysPkg.InstallPatchesSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	jsonByte, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error on query, couldn't marshall result: %s", result)
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: string(jsonByte),
+			},
+		},
+	}, nil
+}
+
+func (sysPkg SysPackage) SearchPackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[SearchPackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	result, err := sysPkg.SysPackageInterface.SearchPackage(params.Arguments)
 	if err != nil {
 		return nil, err
 	}

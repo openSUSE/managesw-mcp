@@ -27,7 +27,7 @@ func main() {
 	}, packageMgr.List)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "query_package",
-		Description: "Query information about a package.",
+		Description: "Query information about a package which is installed on the system or available in the repository.",
 	}, packageMgr.Query)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_repos",
@@ -35,7 +35,7 @@ func main() {
 	}, packageMgr.ListRepo)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "modify_repo",
-		Description: "Modify a package repository on the system. This can be used to enable, disable, or change the properties of a repository. If the repository does not exist, it will be added.",
+		Description: "Modify a package repository on the system. This can be used to enable, disable, or change the properties of a repository. If the repository does not exist, it will be added. The function can also be used to remove a repository.",
 	}, packageMgr.ModifyRepo)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_patches",
@@ -45,6 +45,10 @@ func main() {
 		Name:        "install_patches",
 		Description: "Install patches on the system. This can be used to install all available patches or a subset of patches based on their category or severity.",
 	}, packageMgr.InstallPatches)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "search_package",
+		Description: "Search for a package in the enabled repositories. Wildcards are supported.",
+	}, packageMgr.SearchPackage)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 			return server

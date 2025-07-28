@@ -128,6 +128,36 @@ func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[str
 	return result, nil
 }
 
+func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+	args := []string{"--xmlout", "se", "-s"}
+	if len(params.Repos) > 0 {
+		for _, repo := range params.Repos {
+			args = append(args, "--repo", repo)
+		}
+	}
+	args = append(args, params.Name)
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(output); err != nil {
+		return nil, err
+	}
+
+	var result []map[string]any
+	for _, solElement := range doc.FindElements("//solvable-list/solvable") {
+		pkgMap := make(map[string]any)
+		for _, attr := range solElement.Attr {
+			pkgMap[attr.Key] = attr.Value
+		}
+		result = append(result, pkgMap)
+	}
+	return result, nil
+}
+
 func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
 	args := []string{"--xmlout", "patch"}
 	if params.Category != "" {
