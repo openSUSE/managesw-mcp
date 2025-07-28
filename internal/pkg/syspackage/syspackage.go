@@ -163,10 +163,11 @@ func (sysPkg SysPackage) ListRepo(ctx context.Context, cc *mcp.ServerSession, pa
 }
 
 type ModifyRepoParams struct {
-	Name       string `json:"name" jsonschema:"Name of the rpository"`
-	Disable    bool   `json:"disable,omitempty" jsonschema:"Disable the respository"`
-	Url        string `json:"url,omitempty" jsonschema:"The uri used for this repository. Use http[s]://url for remote repositories or the full pathname for a local repository."`
-	NoGPGCheck bool   `json:"nogpg,omitempty" jsonschema:"Disable the GPG signature check for the repository"`
+	Name        string `json:"name" jsonschema:"Name of the rpository"`
+	Disable     bool   `json:"disable,omitempty" jsonschema:"Disable the respository"`
+	Url         string `json:"url,omitempty" jsonschema:"The uri used for this repository. Use http[s]://url for remote repositories or the full pathname for a local repository."`
+	NoGPGCheck  bool   `json:"nogpg,omitempty" jsonschema:"Disable the GPG signature check for the repository"`
+	RemoveRepos bool   `json:"removerepo,omitempty" jsonschema:"Remove the repository from the system."`
 }
 
 func (sysPkg SysPackage) ModifyRepo(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[ModifyRepoParams]) (toolRes *mcp.CallToolResultFor[any], err error) {

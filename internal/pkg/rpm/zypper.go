@@ -39,6 +39,13 @@ func (rpm RPM) listReposZypper(params syspackage.ListPackageParams) ([]map[strin
 }
 
 func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]any, error) {
+	if params.RemoveRepos {
+		cmd := exec.Command(rpm.mgr.mgrpath, "rr", params.Name)
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
 	repos, err := rpm.listReposZypper(syspackage.ListPackageParams{Name: params.Name})
 	repoExists := true
 	if err != nil {

@@ -50,6 +50,13 @@ func (rpm RPM) listReposDnf(params syspackage.ListPackageParams) ([]map[string]a
 }
 
 func (rpm RPM) modReposDnf(params syspackage.ModifyRepoParams) (map[string]any, error) {
+	if params.RemoveRepos {
+		cmd := exec.Command(rpm.mgr.mgrpath, "repo", "remove", params.Name)
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
 	args := []string{"repo", "modify"}
 	if !params.Disable {
 		args = append(args, "--enable")
