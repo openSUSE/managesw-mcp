@@ -1,4 +1,4 @@
-GO_BIN=manage-sw
+GO_BIN=managesw-mcp
 GO_FILES=$(shell find . -type f -name '*.go' -not -path "./vendor/*")
 godeps=$(shell 2>/dev/null go list -mod vendor -deps -f '{{if not .Standard}}{{ $dep := . }}{{range .GoFiles}}{{$dep.Dir}}/{{.}} {{end}}{{end}}' $(1) | sed "s%$(shell pwd)/%%g")
 

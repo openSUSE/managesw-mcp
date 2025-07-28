@@ -14,6 +14,18 @@ func (n NoPkg) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackag
 func (n NoPkg) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines int) (ret map[string]any, err error) {
 	return ret, fmt.Errorf("No package manager found")
 }
-func (n NoPkg) ListReposSysCall() (ret []map[string]any, err error) {
-	return nil, fmt.Errorf("No package manager found")
+func (n NoPkg) ListReposSysCall(name string) ([]map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (n NoPkg) ModifyRepoSysCall(params syspackage.ModifyRepoParams) (map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (n NoPkg) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (n NoPkg) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
 }

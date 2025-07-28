@@ -33,6 +33,18 @@ func main() {
 		Name:        "list_repos",
 		Description: "List the configured package repositories on the system, including details such as their names, URLs, and enabled status. This tool provides an overview of where packages are sourced from.",
 	}, packageMgr.ListRepo)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "modify_repo",
+		Description: "Modify a package repository on the system. This can be used to enable, disable, or change the properties of a repository. If the repository does not exist, it will be added.",
+	}, packageMgr.ModifyRepo)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_patches",
+		Description: "List the available patches on the system, including details such as their names, categories, and severities. This tool provides an overview of the available patches that can be installed.",
+	}, packageMgr.ListPatches)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "install_patches",
+		Description: "Install patches on the system. This can be used to install all available patches or a subset of patches based on their category or severity.",
+	}, packageMgr.InstallPatches)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 			return server

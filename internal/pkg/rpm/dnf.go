@@ -5,10 +5,16 @@ import (
 	"bytes"
 	"os/exec"
 	"strings"
+
+	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
-func listReposDnf() ([]map[string]any, error) {
-	cmd := exec.Command("dnf", "repolist", "-v")
+func (rpm RPM) listReposDnf(params syspackage.ListPackageParams) ([]map[string]any, error) {
+	args := []string{"repo", "list"}
+	if params.Name != "" {
+		args = append(args, params.Name)
+	}
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -41,4 +47,38 @@ func listReposDnf() ([]map[string]any, error) {
 
 	return repos, nil
 
+}
+
+func (rpm RPM) modReposDnf(params syspackage.ModifyRepoParams) (map[string]any, error) {
+	args := []string{"repo", "modify"}
+	if !params.Disable {
+		args = append(args, "--enable")
+	} else {
+		args = append(args, "--disable")
+	}
+	if params.Name != "" {
+		args = append(args, "--name", params.Name)
+	}
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	err := cmd.Run()
+	if err != nil {
+		// if the repo does not exist, add it
+		cmd := exec.Command(rpm.mgr.mgrpath, "config-manager", "--add-repo", params.Url)
+		if err := cmd.Run(); err != nil {
+			return nil, err
+		}
+	}
+
+	repos, err := rpm.listReposDnf(syspackage.ListPackageParams{Name: params.Name})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, repo := range repos {
+		if r, ok := repo["Repo-id"]; ok && r == params.Name {
+			return repo, nil
+		}
+	}
+
+	return nil, nil
 }

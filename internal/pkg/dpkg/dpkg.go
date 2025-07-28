@@ -126,6 +126,18 @@ func (dpkg DPKG) QueryPackageSysCall(name string, mode syspackage.QueryMode, lin
 
 	return result, nil
 }
-func (dpkg DPKG) ListReposSysCall() (ret []map[string]any, err error) {
-	return nil, fmt.Errorf("No package manager found")
+func (dpkg DPKG) ListReposSysCall(name string) ([]map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (dpkg DPKG) ModifyRepoSysCall(params syspackage.ModifyRepoParams) (map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (dpkg DPKG) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (dpkg DPKG) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
+	return nil, fmt.Errorf("not implemented")
 }

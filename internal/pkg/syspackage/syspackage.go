@@ -18,11 +18,23 @@ type SysPackageInterface interface {
 	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
 	QueryPackageSysCall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
 	ListReposSysCall(name string) (ret []map[string]any, err error)
-	ModifyRepoSyCall(params ModifyRepoParams) (ret []map[string]any, err error)
+	ModifyRepoSysCall(params ModifyRepoParams) (ret map[string]any, err error)
+	ListPatchesSysCall(params ListPatchesParams) ([]map[string]any, error)
+	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
 }
 
 type ListPackageParams struct {
 	Name string `json:"name" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
+}
+
+type ListPatchesParams struct {
+	Category string `json:"category,omitempty" jsonschema:"Category of the patches to be listed."`
+	Severity string `json:"severity,omitempty" jsonschema:"Severity of the patches to be listed."`
+}
+
+type InstallPatchesParams struct {
+	Category string `json:"category,omitempty" jsonschema:"Category of the patches to be installed."`
+	Severity string `json:"severity,omitempty" jsonschema:"Severity of the patches to be installed."`
 }
 
 type SysPackage struct {
@@ -155,4 +167,58 @@ type ModifyRepoParams struct {
 	Disable    bool   `json:"disable,omitempty" jsonschema:"Disable the respository"`
 	Url        string `json:"url,omitempty" jsonschema:"The uri used for this repository. Use http[s]://url for remote repositories or the full pathname for a local repository."`
 	NoGPGCheck bool   `json:"nogpg,omitempty" jsonschema:"Disable the GPG signature check for the repository"`
+}
+
+func (sysPkg SysPackage) ModifyRepo(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[ModifyRepoParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	result, err := sysPkg.ModifyRepoSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	jsonByte, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error on query, couldn't marshall result: %s", result)
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: string(jsonByte),
+			},
+		},
+	}, nil
+}
+
+func (sysPkg SysPackage) ListPatches(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[ListPatchesParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	result, err := sysPkg.ListPatchesSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	jsonByte, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error on query, couldn't marshall result: %s", result)
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: string(jsonByte),
+			},
+		},
+	}, nil
+}
+
+func (sysPkg SysPackage) InstallPatches(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[InstallPatchesParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	result, err := sysPkg.InstallPatchesSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	jsonByte, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("error on query, couldn't marshall result: %s", result)
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: string(jsonByte),
+			},
+		},
+	}, nil
 }

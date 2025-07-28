@@ -143,12 +143,13 @@ func (rpm RPM) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines
 	return result, nil
 }
 
-func (rpm RPM) ListReposSysCall() ([]map[string]any, error) {
+func (rpm RPM) ListReposSysCall(name string) ([]map[string]any, error) {
+	params := syspackage.ListPackageParams{Name: name}
 	switch rpm.mgr.mgrtype {
 	case Zypper:
-		return listReposZypper()
+		return rpm.listReposZypper(params)
 	case Dnf:
-		return listReposDnf()
+		return rpm.listReposDnf(params)
 	default:
 		return nil, fmt.Errorf("No rpm package manager installed")
 	}
@@ -157,9 +158,31 @@ func (rpm RPM) ListReposSysCall() ([]map[string]any, error) {
 func (rpm RPM) ModifyRepoSysCall(params syspackage.ModifyRepoParams) (ret map[string]any, err error) {
 	switch rpm.mgr.mgrtype {
 	case Zypper:
-		return modReposZypper(params)
+		return rpm.modReposZypper(params)
 	case Dnf:
-		return modReposDnf(params)
+		return rpm.modReposDnf(params)
+	default:
+		return nil, fmt.Errorf("No rpm package manager installed")
+	}
+}
+
+func (rpm RPM) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[string]any, error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return rpm.listPatchesZypper(params)
+	case Dnf:
+		return nil, fmt.Errorf("Listing patches is not supported on dnf")
+	default:
+		return nil, fmt.Errorf("No rpm package manager installed")
+	}
+}
+
+func (rpm RPM) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return rpm.installPatchesZypper(params)
+	case Dnf:
+		return nil, fmt.Errorf("Installing patches is not supported on dnf")
 	default:
 		return nil, fmt.Errorf("No rpm package manager installed")
 	}
