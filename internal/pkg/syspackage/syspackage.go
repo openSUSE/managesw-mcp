@@ -18,6 +18,7 @@ type SysPackageInterface interface {
 	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
 	QueryPackageSysCall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
 	ListReposSysCall(name string) (ret []map[string]any, err error)
+	RefreshReposSysCall(name string) error
 	ModifyRepoSysCall(params ModifyRepoParams) (ret map[string]any, err error)
 	ListPatchesSysCall(params ListPatchesParams) ([]map[string]any, error)
 	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
@@ -170,6 +171,10 @@ type ModifyRepoParams struct {
 	RemoveRepos bool   `json:"removerepo,omitempty" jsonschema:"Remove the repository from the system."`
 }
 
+type RefreshReposParams struct {
+	Name string `json:"name,omitempty" jsonschema:"Name of the repository to refresh. When omitted all repos are refreshed."`
+}
+
 func (sysPkg SysPackage) ModifyRepo(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[ModifyRepoParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
 	result, err := sysPkg.ModifyRepoSysCall(params.Arguments)
 	if err != nil {
@@ -183,6 +188,20 @@ func (sysPkg SysPackage) ModifyRepo(ctx context.Context, cc *mcp.ServerSession, 
 		Content: []mcp.Content{
 			&mcp.TextContent{
 				Text: string(jsonByte),
+			},
+		},
+	}, nil
+}
+
+func (sysPkg SysPackage) RefreshRepos(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[RefreshReposParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	err = sysPkg.RefreshReposSysCall(params.Arguments.Name)
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: "Repositories refreshed successfully.",
 			},
 		},
 	}, nil

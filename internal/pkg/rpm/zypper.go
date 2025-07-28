@@ -85,6 +85,19 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 
 }
 
+func (rpm RPM) refreshReposZypper(name string) error {
+	args := []string{"refresh"}
+	if name != "" {
+		args = append(args, name)
+	}
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("zypper refresh failed: %w, output: %s", err, string(output))
+	}
+	return nil
+}
+
 func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[string]any, error) {
 	args := []string{"--xmlout", "lp"}
 	if params.Category != "" {

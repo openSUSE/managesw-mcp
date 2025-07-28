@@ -166,6 +166,17 @@ func (rpm RPM) ModifyRepoSysCall(params syspackage.ModifyRepoParams) (ret map[st
 	}
 }
 
+func (rpm RPM) RefreshReposSysCall(name string) error {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return rpm.refreshReposZypper(name)
+	case Dnf:
+		return rpm.refreshReposDnf(name)
+	default:
+		return fmt.Errorf("No rpm package manager installed")
+	}
+}
+
 func (rpm RPM) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[string]any, error) {
 	switch rpm.mgr.mgrtype {
 	case Zypper:

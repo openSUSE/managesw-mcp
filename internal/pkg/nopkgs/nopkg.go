@@ -29,3 +29,7 @@ func (n NoPkg) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[st
 func (n NoPkg) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
 	return nil, fmt.Errorf("not implemented")
 }
+
+func (n NoPkg) RefreshReposSysCall(name string) error {
+	return fmt.Errorf("not implemented")
+}

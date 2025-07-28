@@ -3,6 +3,7 @@ package rpm
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -88,4 +89,17 @@ func (rpm RPM) modReposDnf(params syspackage.ModifyRepoParams) (map[string]any, 
 	}
 
 	return nil, nil
+}
+
+func (rpm RPM) refreshReposDnf(name string) error {
+	args := []string{"makecache"}
+	if name != "" {
+		args = append(args, "--disablerepo='*'", fmt.Sprintf("--enablerepo='%s'", name))
+	}
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("dnf makecache failed: %w, output: %s", err, string(output))
+	}
+	return nil
 }

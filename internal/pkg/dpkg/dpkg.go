@@ -141,3 +141,7 @@ func (dpkg DPKG) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[
 func (dpkg DPKG) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
 	return nil, fmt.Errorf("not implemented")
 }
+
+func (dpkg DPKG) RefreshReposSysCall(name string) error {
+	return fmt.Errorf("not implemented")
+}
