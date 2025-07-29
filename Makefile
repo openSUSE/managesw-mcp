@@ -6,7 +6,7 @@ godeps=$(shell 2>/dev/null go list -mod vendor -deps -f '{{if not .Standard}}{{ 
 PREFIX ?= /usr
 DESTDIR ?=
 
-.PHONY: all build vendor test format lint clean dist install
+.PHONY: all build vendor test format lint clean dist install build-test-rpm
 
 all: build
 
@@ -40,4 +40,20 @@ dist: build vendor
 install: build
 	install -d -m 0755 "$(DESTDIR)$(PREFIX)/bin"
 	install -m 0755 "$(GO_BIN)" "$(DESTDIR)$(PREFIX)/bin/$(GO_BIN)"
+
+RPM_ARCH = $(shell rpm --eval '%{_arch}')
+TEST_RPM_BASE = test/rpmbuild/RPMS/$(RPM_ARCH)/base-1.0-1.$(RPM_ARCH).rpm
+TEST_RPM_CHILD = test/rpmbuild/RPMS/$(RPM_ARCH)/child-1.0-1.$(RPM_ARCH).rpm
+TEST_RPM_GRANDCHILD = test/rpmbuild/RPMS/$(RPM_ARCH)/grandchild-1.0-1.$(RPM_ARCH).rpm
+
+build-test-rpm: $(TEST_RPM_BASE) $(TEST_RPM_CHILD) $(TEST_RPM_GRANDCHILD)
+
+$(TEST_RPM_BASE): test/rpmbuild/SPECS/base.spec
+	rpmbuild -ba --define="_topdir $(shell pwd)/test/rpmbuild" test/rpmbuild/SPECS/base.spec
+
+$(TEST_RPM_CHILD): test/rpmbuild/SPECS/child.spec
+	rpmbuild -ba --define="_topdir $(shell pwd)/test/rpmbuild" test/rpmbuild/SPECS/child.spec
+
+$(TEST_RPM_GRANDCHILD): test/rpmbuild/SPECS/grandchild.spec
+	rpmbuild -ba --define="_topdir $(shell pwd)/test/rpmbuild" test/rpmbuild/SPECS/grandchild.spec
 
