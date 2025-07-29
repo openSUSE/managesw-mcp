@@ -180,3 +180,7 @@ func (dpkg DPKG) RemovePackageSysCall(params syspackage.RemovePackageParams) (st
 
 	return string(output), nil
 }
+
+func (dpkg DPKG) UpdatePackageSysCall(params syspackage.UpdatePackageParams) (string, error) {
+	return "", fmt.Errorf("not implemented")
+}

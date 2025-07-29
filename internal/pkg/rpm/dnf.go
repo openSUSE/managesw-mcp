@@ -193,3 +193,21 @@ func (rpm RPM) removePackageDnf(params syspackage.RemovePackageParams) (string, 
 	}
 	return string(output), nil
 }
+
+func (rpm RPM) updatePackageDnf(params syspackage.UpdatePackageParams) (string, error) {
+	args := []string{"upgrade", "-y"}
+	if len(params.Repos) > 0 {
+		for _, repo := range params.Repos {
+			args = append(args, "--repo", repo)
+		}
+	}
+	if params.Name != "" {
+		args = append(args, params.Name)
+	}
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("dnf upgrade failed: %w, output: %s", err, string(output))
+	}
+	return string(output), nil
+}

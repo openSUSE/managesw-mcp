@@ -25,6 +25,7 @@ type SysPackageInterface interface {
 	SearchPackageSysCall(params SearchPackageParams) ([]map[string]any, error)
 	InstallPackageSysCall(params InstallPackageParams) (string, error)
 	RemovePackageSysCall(params RemovePackageParams) (string, error)
+	UpdatePackageSysCall(params UpdatePackageParams) (string, error)
 }
 
 type SysPackage struct {
@@ -300,6 +301,25 @@ type RemovePackageParams struct {
 
 func (sysPkg SysPackage) RemovePackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[RemovePackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
 	output, err := sysPkg.SysPackageInterface.RemovePackageSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: output,
+			},
+		},
+	}, nil
+}
+
+type UpdatePackageParams struct {
+	Name  string   `json:"name,omitempty" jsonschema:"Name of the package to update. If omitted, all packages are updated."`
+	Repos []string `json:"repos,omitempty" jsonschema:"A list of repositories to update from."`
+}
+
+func (sysPkg SysPackage) UpdatePackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[UpdatePackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	output, err := sysPkg.SysPackageInterface.UpdatePackageSysCall(params.Arguments)
 	if err != nil {
 		return nil, err
 	}

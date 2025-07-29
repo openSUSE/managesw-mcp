@@ -45,3 +45,7 @@ func (n NoPkg) InstallPackageSysCall(params syspackage.InstallPackageParams) (st
 func (n NoPkg) RemovePackageSysCall(params syspackage.RemovePackageParams) (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
+
+func (n NoPkg) UpdatePackageSysCall(params syspackage.UpdatePackageParams) (string, error) {
+	return "", fmt.Errorf("not implemented")
+}
