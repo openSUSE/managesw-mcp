@@ -49,6 +49,10 @@ func main() {
 		Name:        "search_package",
 		Description: "Search for a package in the enabled repositories. Wildcards are supported.",
 	}, packageMgr.SearchPackage)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "install_package",
+		Description: "Install a package and it's depencies on the system from the online repositories.",
+	}, packageMgr.InstallPackage)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 			return server

@@ -199,7 +199,7 @@ func (rpm RPM) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]
 	}
 }
 
-func (rpm RPM) SearchPackage(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+func (rpm RPM) SearchPackageSysCall(params syspackage.SearchPackageParams) ([]map[string]any, error) {
 	switch rpm.mgr.mgrtype {
 	case Zypper:
 		return rpm.searchPackagesZypper(params)
@@ -207,5 +207,16 @@ func (rpm RPM) SearchPackage(params syspackage.SearchPackageParams) ([]map[strin
 		return rpm.searchPackagesDnf(params)
 	default:
 		return nil, fmt.Errorf("No rpm package manager installed")
+	}
+}
+
+func (rpm RPM) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return rpm.installPackageZypper(params)
+	case Dnf:
+		return rpm.installPackageDnf(params)
+	default:
+		return "", fmt.Errorf("No rpm package manager installed")
 	}
 }

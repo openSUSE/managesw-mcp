@@ -187,3 +187,27 @@ func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]m
 	}
 	return result, nil
 }
+
+func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (string, error) {
+	args := []string{"--non-interactive", "install"}
+	if params.ShowDetails {
+		args = append(args, "--dry-run")
+	}
+	if params.FromRepo != "" {
+		args = append(args, "--from", params.FromRepo)
+	}
+	if params.WithRecommended {
+		args = append(args, "--with-recommended")
+	}
+	pkg := params.Name
+	if params.Version != "" {
+		pkg = fmt.Sprintf("%s=%s", params.Name, params.Version)
+	}
+	args = append(args, pkg)
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("zypper install failed: %w, output: %s", err, string(output))
+	}
+	return string(output), nil
+}

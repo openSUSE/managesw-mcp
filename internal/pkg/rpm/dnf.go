@@ -143,3 +143,31 @@ func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) ([]map[s
 
 	return packages, nil
 }
+
+func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string, error) {
+	args := []string{"install"}
+	if params.ShowDetails {
+		args = append(args, "--assumeno")
+	} else {
+		args = append(args, "-y")
+	}
+	if params.FromRepo != "" {
+		args = append(args, "--repo", params.FromRepo)
+	}
+	if params.WithRecommended {
+		args = append(args, "--setopt=install_weak_deps=True")
+	} else {
+		args = append(args, "--setopt=install_weak_deps=False")
+	}
+	pkg := params.Name
+	if params.Version != "" {
+		pkg = fmt.Sprintf("%s-%s", params.Name, params.Version)
+	}
+	args = append(args, pkg)
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("dnf install failed: %w, output: %s", err, string(output))
+	}
+	return string(output), nil
+}

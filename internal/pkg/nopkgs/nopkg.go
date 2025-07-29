@@ -34,6 +34,10 @@ func (n NoPkg) RefreshReposSysCall(name string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (n NoPkg) SearchPackage(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+func (n NoPkg) SearchPackageSysCall(params syspackage.SearchPackageParams) ([]map[string]any, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+func (n NoPkg) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {
+	return "", fmt.Errorf("not implemented")
 }

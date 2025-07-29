@@ -22,26 +22,8 @@ type SysPackageInterface interface {
 	ModifyRepoSysCall(params ModifyRepoParams) (ret map[string]any, err error)
 	ListPatchesSysCall(params ListPatchesParams) ([]map[string]any, error)
 	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
-	SearchPackage(params SearchPackageParams) ([]map[string]any, error)
-}
-
-type SearchPackageParams struct {
-	Name  string   `json:"name" jsonschema:"Name of the package to search for."`
-	Repos []string `json:"repos,omitempty" jsonschema:"A list of repositories to search in. This is optional and should only be used if explicitly requested. If not supplied, all enabled repositories are used."`
-}
-
-type ListPackageParams struct {
-	Name string `json:"name" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
-}
-
-type ListPatchesParams struct {
-	Category string `json:"category,omitempty" jsonschema:"Category of the patches to be listed."`
-	Severity string `json:"severity,omitempty" jsonschema:"Severity of the patches to be listed."`
-}
-
-type InstallPatchesParams struct {
-	Category string `json:"category,omitempty" jsonschema:"Category of the patches to be installed."`
-	Severity string `json:"severity,omitempty" jsonschema:"Severity of the patches to be installed."`
+	SearchPackageSysCall(params SearchPackageParams) ([]map[string]any, error)
+	InstallPackageSysCall(params InstallPackageParams) (string, error)
 }
 
 type SysPackage struct {
@@ -147,6 +129,10 @@ func (sysPkg SysPackage) Query(ctx context.Context, cc *mcp.ServerSession, param
 	}, nil
 }
 
+type ListPackageParams struct {
+	Name string `json:"name" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
+}
+
 type ListReposParam struct {
 	Name string `json:"name,omitempty" jsonschema:"Name of the repository to list. When omitted all repos are listed."`
 }
@@ -213,6 +199,11 @@ func (sysPkg SysPackage) RefreshRepos(ctx context.Context, cc *mcp.ServerSession
 	}, nil
 }
 
+type ListPatchesParams struct {
+	Category string `json:"category,omitempty" jsonschema:"Category of the patches to be listed."`
+	Severity string `json:"severity,omitempty" jsonschema:"Severity of the patches to be listed."`
+}
+
 func (sysPkg SysPackage) ListPatches(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[ListPatchesParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
 	result, err := sysPkg.ListPatchesSysCall(params.Arguments)
 	if err != nil {
@@ -229,6 +220,11 @@ func (sysPkg SysPackage) ListPatches(ctx context.Context, cc *mcp.ServerSession,
 			},
 		},
 	}, nil
+}
+
+type InstallPatchesParams struct {
+	Category string `json:"category,omitempty" jsonschema:"Category of the patches to be installed."`
+	Severity string `json:"severity,omitempty" jsonschema:"Severity of the patches to be installed."`
 }
 
 func (sysPkg SysPackage) InstallPatches(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[InstallPatchesParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
@@ -249,8 +245,13 @@ func (sysPkg SysPackage) InstallPatches(ctx context.Context, cc *mcp.ServerSessi
 	}, nil
 }
 
+type SearchPackageParams struct {
+	Name  string   `json:"name" jsonschema:"Name of the package to search for."`
+	Repos []string `json:"repos,omitempty" jsonschema:"A list of repositories to search in. This is optional and should only be used if explicitly requested. If not supplied, all enabled repositories are used."`
+}
+
 func (sysPkg SysPackage) SearchPackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[SearchPackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
-	result, err := sysPkg.SysPackageInterface.SearchPackage(params.Arguments)
+	result, err := sysPkg.SysPackageInterface.SearchPackageSysCall(params.Arguments)
 	if err != nil {
 		return nil, err
 	}
@@ -262,6 +263,28 @@ func (sysPkg SysPackage) SearchPackage(ctx context.Context, cc *mcp.ServerSessio
 		Content: []mcp.Content{
 			&mcp.TextContent{
 				Text: string(jsonByte),
+			},
+		},
+	}, nil
+}
+
+type InstallPackageParams struct {
+	Name            string `json:"name" jsonschema:"Name of the package to install."`
+	Version         string `json:"version,omitempty" jsonschema:"Version of the package to install, only needed if alternate version is wanted."`
+	FromRepo        string `json:"repo,omitempty" jsonschema:"Repository to install from."`
+	WithRecommended bool   `json:"with_recommended,omitempty" jsonschema:"Install recommended packages. These are packages not directly needed, but useful for the package to be functioning."`
+	ShowDetails     bool   `json:"show_details,omitempty" jsonschema:"Show which additional packages would be installed, which gives an overview of how much space will consumed."`
+}
+
+func (sysPkg SysPackage) InstallPackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[InstallPackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	output, err := sysPkg.SysPackageInterface.InstallPackageSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: output,
 			},
 		},
 	}, nil
