@@ -12,6 +12,7 @@ import (
 )
 
 var httpAddr = flag.String("http", "", "if set, use streamable HTTP at this address, instead of stdin/stdout")
+var root = flag.String("root", "", "if set, use this directory as the root for package operations")
 
 func main() {
 	flag.Parse()
@@ -20,7 +21,7 @@ func main() {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "OS software management",
 		Version: "0.0.1"}, nil)
-	packageMgr := oscheck.NewPkg()
+	packageMgr := oscheck.NewPkg(*root)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_packages",
 		Description: "List the installed packages on the system.",

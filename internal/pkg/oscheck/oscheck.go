@@ -9,14 +9,20 @@ import (
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
-func NewPkg() syspackage.SysPackage {
+func NewPkg(root string) syspackage.SysPackage {
 	if rpmpath, err := exec.LookPath("rpm"); err == nil {
-		if err := exec.Command(rpmpath, "-q", "rpm").Run(); err == nil {
+		args := []string{}
+		if root != "" {
+			args = append(args, "--root", root)
+		}
+		args = append(args, "-q", "rpm")
+		cmd := exec.Command(rpmpath, args...)
+		if err := cmd.Run(); err == nil {
 			if zypperPath, err := exec.LookPath("zypper"); err == nil {
-				return syspackage.SysPackage{rpm.NewRPM(rpmpath, rpm.Zypper, zypperPath)}
+				return syspackage.SysPackage{rpm.NewRPM(rpmpath, rpm.Zypper, zypperPath, root)}
 			}
 			if dnfPath, err := exec.LookPath("dnf"); err == nil {
-				return syspackage.SysPackage{rpm.NewRPM(rpmpath, rpm.Dnf, dnfPath)}
+				return syspackage.SysPackage{rpm.NewRPM(rpmpath, rpm.Dnf, dnfPath, root)}
 			}
 		}
 	}
@@ -26,7 +32,13 @@ func NewPkg() syspackage.SysPackage {
 		if err != nil {
 			goto nodpkg
 		}
-		dpkgCmdOut, err := exec.Command(dpkgquery, "-s", "dpkg").Output()
+		args := []string{}
+		if root != "" {
+			args = append(args, "--root", root)
+		}
+		args = append(args, "-s", "dpkg")
+		cmd := exec.Command(dpkgquery, args...)
+		dpkgCmdOut, err := cmd.Output()
 		if err == nil && len(dpkgCmdOut) > 0 {
 			return syspackage.SysPackage{dpkg.New(dpkgpath, dpkgquery)}
 		}

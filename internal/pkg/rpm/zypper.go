@@ -9,7 +9,11 @@ import (
 )
 
 func (rpm RPM) listReposZypper(params syspackage.ListPackageParams) ([]map[string]any, error) {
-	args := []string{"--xmlout", "-s", "0", "lr"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--xmlout", "-s", "0", "lr")
 	if params.Name != "" {
 		args = append(args, params.Name)
 	}
@@ -40,7 +44,12 @@ func (rpm RPM) listReposZypper(params syspackage.ListPackageParams) ([]map[strin
 
 func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]any, error) {
 	if params.RemoveRepos {
-		cmd := exec.Command(rpm.mgr.mgrpath, "rr", params.Name)
+		args := []string{}
+		if rpm.root != "" {
+			args = append(args, "--root", rpm.root)
+		}
+		args = append(args, "rr", params.Name)
+		cmd := exec.Command(rpm.mgr.mgrpath, args...)
 		if err := cmd.Run(); err != nil {
 			return nil, err
 		}
@@ -52,7 +61,11 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 		repoExists = false
 	}
 	if repoExists {
-		zypperArgs := []string{"mr"}
+		zypperArgs := []string{}
+		if rpm.root != "" {
+			zypperArgs = append(zypperArgs, "--root", rpm.root)
+		}
+		zypperArgs = append(zypperArgs, "mr")
 		if !params.Disable {
 			zypperArgs = append(zypperArgs, "-e")
 		} else {
@@ -67,7 +80,12 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 			return nil, err
 		}
 	} else {
-		cmd := exec.Command(rpm.mgr.mgrpath, "ar", "-f", params.Url, params.Name)
+		args := []string{}
+		if rpm.root != "" {
+			args = append(args, "--root", rpm.root)
+		}
+		args = append(args, "ar", "-f", params.Url, params.Name)
+		cmd := exec.Command(rpm.mgr.mgrpath, args...)
 		if err := cmd.Run(); err != nil {
 			return nil, err
 		}
@@ -86,7 +104,11 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 }
 
 func (rpm RPM) refreshReposZypper(name string) error {
-	args := []string{"refresh"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "refresh")
 	if name != "" {
 		args = append(args, name)
 	}
@@ -99,7 +121,11 @@ func (rpm RPM) refreshReposZypper(name string) error {
 }
 
 func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[string]any, error) {
-	args := []string{"--xmlout", "lp"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--xmlout", "lp")
 	if params.Category != "" {
 		args = append(args, "--category", params.Category)
 	}
@@ -129,7 +155,11 @@ func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[str
 }
 
 func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]map[string]any, error) {
-	args := []string{"--xmlout", "se", "-s"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--xmlout", "se", "-s")
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--repo", repo)
@@ -159,7 +189,11 @@ func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]ma
 }
 
 func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
-	args := []string{"--xmlout", "patch"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--xmlout", "patch")
 	if params.Category != "" {
 		args = append(args, "--category", params.Category)
 	}
@@ -189,7 +223,11 @@ func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]m
 }
 
 func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (string, error) {
-	args := []string{"--non-interactive", "install"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--non-interactive", "install")
 	if params.ShowDetails {
 		args = append(args, "--dry-run")
 	}
@@ -213,7 +251,11 @@ func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (str
 }
 
 func (rpm RPM) removePackageZypper(params syspackage.RemovePackageParams) (string, error) {
-	args := []string{"--non-interactive", "remove"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--non-interactive", "remove")
 	if params.ShowDetails {
 		args = append(args, "--dry-run")
 	}
@@ -230,7 +272,11 @@ func (rpm RPM) removePackageZypper(params syspackage.RemovePackageParams) (strin
 }
 
 func (rpm RPM) updatePackageZypper(params syspackage.UpdatePackageParams) (string, error) {
-	args := []string{"--non-interactive", "update"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "--non-interactive", "update")
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--from", repo)

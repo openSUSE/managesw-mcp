@@ -26,15 +26,17 @@ type PkgMgr struct {
 type RPM struct {
 	rpmpath string
 	mgr     PkgMgr
+	root    string
 }
 
-func NewRPM(path string, systype RPMType, mgrpath string) RPM {
+func NewRPM(path string, systype RPMType, mgrpath string, root string) RPM {
 	return RPM{
 		rpmpath: path,
 		mgr: PkgMgr{
 			mgrtype: systype,
 			mgrpath: mgrpath,
 		},
+		root: root,
 	}
 }
 
@@ -42,7 +44,11 @@ func NewRPM(path string, systype RPMType, mgrpath string) RPM {
 func (rpm RPM) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackageInfo, error) {
 	// The query format doesn't need shell quoting since exec.Command passes arguments directly.
 	qf := `%{NAME},%{VERSION},%{SIZE}\n`
-	args := []string{"-qa", "--qf", qf}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "-qa", "--qf", qf)
 	if name != "" {
 		args = append(args, name)
 	}
@@ -89,21 +95,25 @@ func (rpm RPM) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines
 	var cmdArgs []string
 	var resultKey string
 
+	if rpm.root != "" {
+		cmdArgs = append(cmdArgs, "--root", rpm.root)
+	}
+
 	switch mode {
 	case syspackage.Info:
-		cmdArgs = []string{"-qi", name}
+		cmdArgs = append(cmdArgs, "-qi", name)
 		resultKey = "info"
 	case syspackage.Requires:
-		cmdArgs = []string{"-q", "--requires", name}
+		cmdArgs = append(cmdArgs, "-q", "--requires", name)
 		resultKey = "requires"
 	case syspackage.Recommends:
-		cmdArgs = []string{"-q", "--recommends", name}
+		cmdArgs = append(cmdArgs, "-q", "--recommends", name)
 		resultKey = "recommends"
 	case syspackage.Obsoletes:
-		cmdArgs = []string{"-q", "--obsoletes", name}
+		cmdArgs = append(cmdArgs, "-q", "--obsoletes", name)
 		resultKey = "obsoletes"
 	case syspackage.Changelog:
-		cmdArgs = []string{"-q", "--changelog", name}
+		cmdArgs = append(cmdArgs, "-q", "--changelog", name)
 		resultKey = "changelog"
 	default:
 		return nil, fmt.Errorf("unsupported query mode: %v", mode)

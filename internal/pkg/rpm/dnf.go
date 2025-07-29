@@ -11,7 +11,11 @@ import (
 )
 
 func (rpm RPM) listReposDnf(params syspackage.ListPackageParams) ([]map[string]any, error) {
-	args := []string{"repo", "list"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "repo", "list")
 	if params.Name != "" {
 		args = append(args, params.Name)
 	}
@@ -52,13 +56,22 @@ func (rpm RPM) listReposDnf(params syspackage.ListPackageParams) ([]map[string]a
 
 func (rpm RPM) modReposDnf(params syspackage.ModifyRepoParams) (map[string]any, error) {
 	if params.RemoveRepos {
-		cmd := exec.Command(rpm.mgr.mgrpath, "repo", "remove", params.Name)
+		args := []string{}
+		if rpm.root != "" {
+			args = append(args, "--root", rpm.root)
+		}
+		args = append(args, "repo", "remove", params.Name)
+		cmd := exec.Command(rpm.mgr.mgrpath, args...)
 		if err := cmd.Run(); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
-	args := []string{"repo", "modify"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "repo", "modify")
 	if !params.Disable {
 		args = append(args, "--enable")
 	} else {
@@ -71,7 +84,12 @@ func (rpm RPM) modReposDnf(params syspackage.ModifyRepoParams) (map[string]any, 
 	err := cmd.Run()
 	if err != nil {
 		// if the repo does not exist, add it
-		cmd := exec.Command(rpm.mgr.mgrpath, "config-manager", "--add-repo", params.Url)
+		args := []string{}
+		if rpm.root != "" {
+			args = append(args, "--root", rpm.root)
+		}
+		args = append(args, "config-manager", "--add-repo", params.Url)
+		cmd := exec.Command(rpm.mgr.mgrpath, args...)
 		if err := cmd.Run(); err != nil {
 			return nil, err
 		}
@@ -92,7 +110,11 @@ func (rpm RPM) modReposDnf(params syspackage.ModifyRepoParams) (map[string]any, 
 }
 
 func (rpm RPM) refreshReposDnf(name string) error {
-	args := []string{"makecache"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "makecache")
 	if name != "" {
 		args = append(args, "--disablerepo='*'", fmt.Sprintf("--enablerepo='%s'", name))
 	}
@@ -105,7 +127,11 @@ func (rpm RPM) refreshReposDnf(name string) error {
 }
 
 func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) ([]map[string]any, error) {
-	args := []string{"search"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "search")
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--repo", repo)
@@ -145,7 +171,11 @@ func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) ([]map[s
 }
 
 func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string, error) {
-	args := []string{"install"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "install")
 	if params.ShowDetails {
 		args = append(args, "--assumeno")
 	} else {
@@ -173,7 +203,11 @@ func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string
 }
 
 func (rpm RPM) removePackageDnf(params syspackage.RemovePackageParams) (string, error) {
-	args := []string{"remove"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "remove")
 	if params.ShowDetails {
 		args = append(args, "--assumeno")
 	} else {
@@ -195,7 +229,11 @@ func (rpm RPM) removePackageDnf(params syspackage.RemovePackageParams) (string, 
 }
 
 func (rpm RPM) updatePackageDnf(params syspackage.UpdatePackageParams) (string, error) {
-	args := []string{"upgrade", "-y"}
+	args := []string{}
+	if rpm.root != "" {
+		args = append(args, "--root", rpm.root)
+	}
+	args = append(args, "upgrade", "-y")
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--repo", repo)
