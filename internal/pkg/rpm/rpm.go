@@ -220,3 +220,14 @@ func (rpm RPM) InstallPackageSysCall(params syspackage.InstallPackageParams) (st
 		return "", fmt.Errorf("No rpm package manager installed")
 	}
 }
+
+func (rpm RPM) RemovePackageSysCall(params syspackage.RemovePackageParams) (string, error) {
+	switch rpm.mgr.mgrtype {
+	case Zypper:
+		return rpm.removePackageZypper(params)
+	case Dnf:
+		return rpm.removePackageDnf(params)
+	default:
+		return "", fmt.Errorf("No rpm package manager installed")
+	}
+}

@@ -211,3 +211,20 @@ func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (str
 	}
 	return string(output), nil
 }
+
+func (rpm RPM) removePackageZypper(params syspackage.RemovePackageParams) (string, error) {
+	args := []string{"--non-interactive", "remove"}
+	if params.ShowDetails {
+		args = append(args, "--dry-run")
+	}
+	if params.RemoveDeps {
+		args = append(args, "--clean-deps")
+	}
+	args = append(args, params.Name)
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("zypper remove failed: %w, output: %s", err, string(output))
+	}
+	return string(output), nil
+}

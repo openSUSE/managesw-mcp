@@ -171,3 +171,25 @@ func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string
 	}
 	return string(output), nil
 }
+
+func (rpm RPM) removePackageDnf(params syspackage.RemovePackageParams) (string, error) {
+	args := []string{"remove"}
+	if params.ShowDetails {
+		args = append(args, "--assumeno")
+	} else {
+		args = append(args, "-y")
+	}
+	if params.Purge {
+		args = append(args, "--purge")
+	}
+	if params.RemoveDeps {
+		args = append(args, "--setopt=clean_requirements_on_remove=True")
+	}
+	args = append(args, params.Name)
+	cmd := exec.Command(rpm.mgr.mgrpath, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("dnf remove failed: %w, output: %s", err, string(output))
+	}
+	return string(output), nil
+}

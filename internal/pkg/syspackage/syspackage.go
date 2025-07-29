@@ -24,6 +24,7 @@ type SysPackageInterface interface {
 	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
 	SearchPackageSysCall(params SearchPackageParams) ([]map[string]any, error)
 	InstallPackageSysCall(params InstallPackageParams) (string, error)
+	RemovePackageSysCall(params RemovePackageParams) (string, error)
 }
 
 type SysPackage struct {
@@ -278,6 +279,27 @@ type InstallPackageParams struct {
 
 func (sysPkg SysPackage) InstallPackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[InstallPackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
 	output, err := sysPkg.SysPackageInterface.InstallPackageSysCall(params.Arguments)
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{
+			&mcp.TextContent{
+				Text: output,
+			},
+		},
+	}, nil
+}
+
+type RemovePackageParams struct {
+	Name        string `json:"name" jsonschema:"Name of the package to remove."`
+	Purge       bool   `json:"purge,omitempty" jsonschema:"Delete configuration files, etc."`
+	RemoveDeps  bool   `json:"removedeps,omitempty" jsonschema:"Automatically remove unneeded dependencies."`
+	ShowDetails bool   `json:"show_details,omitempty" jsonschema:"Show which additional packages would be removed."`
+}
+
+func (sysPkg SysPackage) RemovePackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[RemovePackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
+	output, err := sysPkg.SysPackageInterface.RemovePackageSysCall(params.Arguments)
 	if err != nil {
 		return nil, err
 	}

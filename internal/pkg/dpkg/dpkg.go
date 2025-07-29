@@ -153,3 +153,30 @@ func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) ([]
 func (dpkg DPKG) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
+
+func (dpkg DPKG) RemovePackageSysCall(params syspackage.RemovePackageParams) (string, error) {
+	if params.Name == "" {
+		return "", fmt.Errorf("package name is required")
+	}
+
+	var cmdArgs []string
+	if params.Purge {
+		cmdArgs = append(cmdArgs, "--purge")
+	} else {
+		cmdArgs = append(cmdArgs, "--remove")
+	}
+
+	if params.ShowDetails {
+		cmdArgs = append(cmdArgs, "--dry-run")
+	}
+
+	cmdArgs = append(cmdArgs, params.Name)
+
+	cmd := exec.Command(dpkg.dpkgbin, cmdArgs...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to remove package '%s': %w. Output: %s", params.Name, err, string(output))
+	}
+
+	return string(output), nil
+}

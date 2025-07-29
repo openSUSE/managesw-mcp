@@ -53,6 +53,10 @@ func main() {
 		Name:        "install_package",
 		Description: "Install a package and it's depencies on the system from the online repositories.",
 	}, packageMgr.InstallPackage)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "remove_package",
+		Description: "Remove a package and it's depencies on the system.",
+	}, packageMgr.RemovePackage)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
 			return server
