@@ -242,6 +242,10 @@ func (rpm RPM) RemovePackageSysCall(params syspackage.RemovePackageParams) (stri
 	}
 }
 
+func (rpm RPM) PkgType() string {
+	return "rpm"
+}
+
 func (rpm RPM) UpdatePackageSysCall(params syspackage.UpdatePackageParams) (string, error) {
 	switch rpm.mgr.mgrtype {
 	case Zypper:

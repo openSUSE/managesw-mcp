@@ -26,6 +26,7 @@ type SysPackageInterface interface {
 	InstallPackageSysCall(params InstallPackageParams) (string, error)
 	RemovePackageSysCall(params RemovePackageParams) (string, error)
 	UpdatePackageSysCall(params UpdatePackageParams) (string, error)
+	PkgType() string
 }
 
 type SysPackage struct {
