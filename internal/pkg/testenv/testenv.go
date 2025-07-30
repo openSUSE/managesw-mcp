@@ -108,7 +108,7 @@ func (env *TestEnv) ImportDir(dirName string, inputDirName string) {
 // and copies it to the rpm directory.
 func (env *TestEnv) ImportRpm(rpmPath string) {
 	// Install RPM
-	cmd := exec.Command("rpm", "-i", "--nodeps", "--root", env.GetPath("/"), rpmPath)
+	cmd := exec.Command("rpm", "-i", "--nodeps", "--prefix", env.BaseDir, "--dbpath", env.GetPath("var/lib/rpm"), rpmPath)
 	output, err := cmd.CombinedOutput()
 	assert.NoError(env.t, err, string(output))
 
