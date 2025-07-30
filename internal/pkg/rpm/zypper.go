@@ -227,7 +227,7 @@ func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (str
 	if rpm.root != "" {
 		args = append(args, "--root", rpm.root)
 	}
-	args = append(args, "--non-interactive", "install")
+	args = append(args, "--non-interactive", "--auto-agree-with-licenses", "install")
 	if params.ShowDetails {
 		args = append(args, "--dry-run")
 	}
@@ -276,7 +276,11 @@ func (rpm RPM) updatePackageZypper(params syspackage.UpdatePackageParams) (strin
 	if rpm.root != "" {
 		args = append(args, "--root", rpm.root)
 	}
-	args = append(args, "--non-interactive", "update")
+	updateCmd := "update"
+	if params.Upgrade {
+		updateCmd = "dup"
+	}
+	args = append(args, "--non-interactive", "--auto-agree-with-licenses", updateCmd)
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--from", repo)
@@ -288,7 +292,7 @@ func (rpm RPM) updatePackageZypper(params syspackage.UpdatePackageParams) (strin
 	cmd := exec.Command(rpm.mgr.mgrpath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(output), fmt.Errorf("zypper update failed: %w, output: %s", err, string(output))
+		return string(output), fmt.Errorf("zypper %s failed: %w, output: %s", updateCmd, err, string(output))
 	}
 	return string(output), nil
 }

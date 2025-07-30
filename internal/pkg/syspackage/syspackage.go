@@ -315,8 +315,9 @@ func (sysPkg SysPackage) RemovePackage(ctx context.Context, cc *mcp.ServerSessio
 }
 
 type UpdatePackageParams struct {
-	Name  string   `json:"name,omitempty" jsonschema:"Name of the package to update. If omitted, all packages are updated."`
-	Repos []string `json:"repos,omitempty" jsonschema:"A list of repositories to update from."`
+	Name    string   `json:"name,omitempty" jsonschema:"Name of the package to update. If omitted, all packages are updated."`
+	Repos   []string `json:"repos,omitempty" jsonschema:"A list of repositories to update from."`
+	Upgrade bool     `json:"upgrade,omitempty" jsonschema:"On 'zypper', this will perform a 'dup' instead of an 'up'. This has no effect on 'dnf' as it performs an 'upgrade' by default."`
 }
 
 func (sysPkg SysPackage) UpdatePackage(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[UpdatePackageParams]) (toolRes *mcp.CallToolResultFor[any], err error) {
