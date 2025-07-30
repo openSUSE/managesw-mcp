@@ -32,6 +32,8 @@ lint:
 
 clean:
 	rm -f $(GO_BIN)
+	rm -rf test/rpmbuild/RPMS
+	rm -rf test/rpmbuild/SRPMS
 	go clean -modcache
 
 dist: build vendor
