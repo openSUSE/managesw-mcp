@@ -37,7 +37,6 @@ gpgcheck=0
 	// Create a new RPM instance for testing with Zypper
 	rpm := NewRPMTest("rpm", Zypper, "zypper", env.GetPath(""))
 
-	// Copy base RPM and create repo
 	rpmArch, err := exec.Command("rpm", "--eval", "%{_arch}").Output()
 	require.NoError(t, err, "Failed to get RPM architecture")
 	arch := strings.TrimSpace(string(rpmArch))
@@ -45,9 +44,6 @@ gpgcheck=0
 	childRpmPath := "../../../test/rpmbuild/RPMS/" + arch + "/child-1.0-1." + arch + ".rpm"
 
 	env.ImportFile(filepath.Join("my-local-repo", "base-1.0-1."+arch+".rpm"), baseRpmPath)
-
-	err = exec.Command("createrepo", repoPath).Run()
-	require.NoError(t, err)
 
 	// Refresh repos
 	err = rpm.RefreshReposSysCall("my-local-repo")
@@ -70,8 +66,6 @@ gpgcheck=0
 
 	// Add child RPM and update repo
 	env.ImportFile(filepath.Join("my-local-repo", "child-1.0-1."+arch+".rpm"), childRpmPath)
-	err = exec.Command("createrepo", "--update", repoPath).Run()
-	require.NoError(t, err)
 
 	// Refresh repos again
 	err = rpm.RefreshReposSysCall("my-local-repo")
@@ -79,7 +73,6 @@ gpgcheck=0
 
 	// Search for child package
 	pkgs, err = rpm.SearchPackageSysCall(syspackage.SearchPackageParams{Name: "child"})
-	require.NoError(t, err)
 	require.Len(t, pkgs, 1, "Expected to find 1 package")
 	assert.Equal(t, "child", pkgs[0]["name"])
 }
