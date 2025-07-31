@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
 
 jobs:
   release:
@@ -17,7 +18,10 @@ jobs:
           go-version: '1.22.x'
 
       - name: Build
-        run: go build -o managesw-mcp -mod=vendor .
+        run: |
+          go mod tidy
+          go mod vendor
+          go build managesw-mcp.go
 
       - name: Create tarball
         run: tar -czvf managesw-mcp.tar.gz managesw-mcp
