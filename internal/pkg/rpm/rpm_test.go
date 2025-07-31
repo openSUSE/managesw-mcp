@@ -24,7 +24,7 @@ func TestListInstalledPackagesSysCall(t *testing.T) {
 	env.ImportRpm(filepath.Join(rpmPath, "grandchild-1.0-1.x86_64.rpm"))
 
 	// Create a new RPM instance for testing
-	rpm := NewRPMTest("rpm", Zypper, "", env.GetPath("var/lib/rpm"))
+	rpm := NewRPMTest("rpm", Zypper, "zypper", env.GetPath(""))
 
 	// List all installed packages
 	pkgs, err := rpm.ListInstalledPackagesSysCall("")

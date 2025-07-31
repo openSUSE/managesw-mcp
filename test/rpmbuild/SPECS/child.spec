@@ -6,6 +6,7 @@ License:        MIT
 Prefix:         /usr
 Requires:       base
 Recommends:     grandchild
+AutoReqProv:    no
 
 %description
 This is a child package that depends on base.

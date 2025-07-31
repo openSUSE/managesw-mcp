@@ -4,6 +4,7 @@ Release:        1
 Summary:        A base package
 License:        MIT
 Prefix:         /usr
+AutoReqProv:    no
 
 %description
 This is a base package.

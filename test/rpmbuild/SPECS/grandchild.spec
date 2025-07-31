@@ -5,6 +5,7 @@ Summary:        A grandchild package
 License:        MIT
 Prefix:         /usr
 Requires:       child
+AutoReqProv:    no
 
 %description
 This is a grandchild package that depends on child.

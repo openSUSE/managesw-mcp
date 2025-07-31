@@ -17,8 +17,8 @@ vendor:
 	go mod tidy
 	go mod vendor
 
-test:
-	go test ./...
+test: build-test-rpm
+	go test -tags=integration ./...
 
 format:
 	go fmt $(GO_FILES)

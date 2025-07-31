@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 
@@ -27,7 +28,7 @@ type RPM struct {
 	rpmpath string
 	mgr     PkgMgr
 	root    string
-	dbpath  string
+	isTest  bool
 }
 
 func NewRPM(path string, systype RPMType, mgrpath string, root string) RPM {
@@ -41,14 +42,15 @@ func NewRPM(path string, systype RPMType, mgrpath string, root string) RPM {
 	}
 }
 
-func NewRPMTest(path string, systype RPMType, mgrpath string, dbpath string) RPM {
+func NewRPMTest(path string, systype RPMType, mgrpath string, root string) RPM {
 	return RPM{
 		rpmpath: path,
 		mgr: PkgMgr{
 			mgrtype: systype,
 			mgrpath: mgrpath,
 		},
-		dbpath: dbpath,
+		root:   root,
+		isTest: true,
 	}
 }
 
@@ -57,18 +59,15 @@ func (rpm RPM) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackag
 	// The query format doesn't need shell quoting since exec.Command passes arguments directly.
 	qf := `%{NAME},%{VERSION},%{SIZE}\n`
 	args := []string{}
-	if rpm.root != "" {
+	if rpm.isTest {
+		args = append(args, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+	} else if rpm.root != "" {
 		args = append(args, "--root", rpm.root)
-	}
-	if rpm.dbpath != "" {
-		args = append(args, "--dbpath", rpm.dbpath)
 	}
 	args = append(args, "-qa", "--qf", qf)
 	if name != "" {
 		args = append(args, name)
 	}
-
-
 
 	cmd := exec.Command(rpm.rpmpath, args...)
 	pkgList, err := cmd.CombinedOutput()
@@ -113,11 +112,10 @@ func (rpm RPM) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines
 	var cmdArgs []string
 	var resultKey string
 
-	if rpm.root != "" {
+	if rpm.isTest {
+		cmdArgs = append(cmdArgs, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+	} else if rpm.root != "" {
 		cmdArgs = append(cmdArgs, "--root", rpm.root)
-	}
-	if rpm.dbpath != "" {
-		cmdArgs = append(cmdArgs, "--dbpath", rpm.dbpath)
 	}
 
 	switch mode {

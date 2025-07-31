@@ -8,11 +8,21 @@ import (
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
-func (rpm RPM) listReposZypper(params syspackage.ListPackageParams) ([]map[string]any, error) {
+func (rpm RPM) zypperArgs() []string {
 	args := []string{}
 	if rpm.root != "" {
 		args = append(args, "--root", rpm.root)
 	}
+	/*
+		if rpm.isTest {
+			args = append(args, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+		}
+	*/
+	return args
+}
+
+func (rpm RPM) listReposZypper(params syspackage.ListPackageParams) ([]map[string]any, error) {
+	args := rpm.zypperArgs()
 	args = append(args, "--xmlout", "-s", "0", "lr")
 	if params.Name != "" {
 		args = append(args, params.Name)
@@ -44,11 +54,8 @@ func (rpm RPM) listReposZypper(params syspackage.ListPackageParams) ([]map[strin
 
 func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]any, error) {
 	if params.RemoveRepos {
-		args := []string{}
-		if rpm.root != "" {
-			args = append(args, "--root", rpm.root)
-		}
-		args = append(args, "rr", params.Name)
+		args := rpm.zypperArgs()
+		args = append(args, "--non-interactive", "rr", params.Name)
 		cmd := exec.Command(rpm.mgr.mgrpath, args...)
 		if err := cmd.Run(); err != nil {
 			return nil, err
@@ -61,15 +68,15 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 		repoExists = false
 	}
 	if repoExists {
-		zypperArgs := []string{}
-		if rpm.root != "" {
-			zypperArgs = append(zypperArgs, "--root", rpm.root)
-		}
-		zypperArgs = append(zypperArgs, "mr")
+		zypperArgs := rpm.zypperArgs()
+		zypperArgs = append(zypperArgs, "--non-interactive", "mr")
 		if !params.Disable {
 			zypperArgs = append(zypperArgs, "-e")
 		} else {
 			zypperArgs = append(zypperArgs, "-d")
+		}
+		if params.NoGPGCheck {
+			zypperArgs = append(zypperArgs, "--no-gpgcheck")
 		}
 		if params.Name != "" {
 			zypperArgs = append(zypperArgs, "-n", params.Name)
@@ -80,11 +87,12 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 			return nil, err
 		}
 	} else {
-		args := []string{}
-		if rpm.root != "" {
-			args = append(args, "--root", rpm.root)
+		args := rpm.zypperArgs()
+		args = append(args, "--non-interactive", "ar", "-f")
+		if params.NoGPGCheck {
+			args = append(args, "--no-gpgcheck")
 		}
-		args = append(args, "ar", "-f", params.Url, params.Name)
+		args = append(args, params.Url, params.Name)
 		cmd := exec.Command(rpm.mgr.mgrpath, args...)
 		if err := cmd.Run(); err != nil {
 			return nil, err
@@ -104,11 +112,8 @@ func (rpm RPM) modReposZypper(params syspackage.ModifyRepoParams) (map[string]an
 }
 
 func (rpm RPM) refreshReposZypper(name string) error {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
-	args = append(args, "refresh")
+	args := rpm.zypperArgs()
+	args = append(args, "--non-interactive", "--verbose", "refresh")
 	if name != "" {
 		args = append(args, name)
 	}
@@ -121,10 +126,7 @@ func (rpm RPM) refreshReposZypper(name string) error {
 }
 
 func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[string]any, error) {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
+	args := rpm.zypperArgs()
 	args = append(args, "--xmlout", "lp")
 	if params.Category != "" {
 		args = append(args, "--category", params.Category)
@@ -155,10 +157,7 @@ func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[str
 }
 
 func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]map[string]any, error) {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
+	args := rpm.zypperArgs()
 	args = append(args, "--xmlout", "se", "-s")
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
@@ -181,7 +180,11 @@ func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]ma
 	for _, solElement := range doc.FindElements("//solvable-list/solvable") {
 		pkgMap := make(map[string]any)
 		for _, attr := range solElement.Attr {
-			pkgMap[attr.Key] = attr.Value
+			if attr.Key == "edition" {
+				pkgMap["version"] = attr.Value
+			} else {
+				pkgMap[attr.Key] = attr.Value
+			}
 		}
 		result = append(result, pkgMap)
 	}
@@ -189,11 +192,8 @@ func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]ma
 }
 
 func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]map[string]any, error) {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
-	args = append(args, "--xmlout", "patch")
+	args := rpm.zypperArgs()
+	args = append(args, "--non-interactive", "--xmlout", "patch")
 	if params.Category != "" {
 		args = append(args, "--category", params.Category)
 	}
@@ -223,11 +223,8 @@ func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]m
 }
 
 func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (string, error) {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
-	args = append(args, "--non-interactive", "--auto-agree-with-licenses", "install")
+	args := rpm.zypperArgs()
+	args = append(args, "--non-interactive", "install")
 	if params.ShowDetails {
 		args = append(args, "--dry-run")
 	}
@@ -251,10 +248,7 @@ func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (str
 }
 
 func (rpm RPM) removePackageZypper(params syspackage.RemovePackageParams) (string, error) {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
+	args := rpm.zypperArgs()
 	args = append(args, "--non-interactive", "remove")
 	if params.ShowDetails {
 		args = append(args, "--dry-run")
@@ -272,15 +266,12 @@ func (rpm RPM) removePackageZypper(params syspackage.RemovePackageParams) (strin
 }
 
 func (rpm RPM) updatePackageZypper(params syspackage.UpdatePackageParams) (string, error) {
-	args := []string{}
-	if rpm.root != "" {
-		args = append(args, "--root", rpm.root)
-	}
+	args := rpm.zypperArgs()
 	updateCmd := "update"
 	if params.Upgrade {
 		updateCmd = "dup"
 	}
-	args = append(args, "--non-interactive", "--auto-agree-with-licenses", updateCmd)
+	args = append(args, "--non-interactive", updateCmd)
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--from", repo)
