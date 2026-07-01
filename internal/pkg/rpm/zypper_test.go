@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,10 +60,17 @@ gpgcheck=0
 	assert.Equal(t, "1", repos[0]["autorefresh"])
 
 	// Search for base package
-	pkgs, err := rpm.SearchPackageSysCall(syspackage.SearchPackageParams{Name: "base"})
+	pkgsAny, err := rpm.SearchPackageSysCall(syspackage.SearchPackageParams{Name: "base"})
 	require.NoError(t, err)
-	require.Len(t, pkgs, 1, "Expected to find 1 package")
-	assert.Equal(t, "base", pkgs[0]["name"])
+	pkgs, ok := pkgsAny.(map[string]map[string][]syspackage.SearchedPackage)
+	require.True(t, ok, "Expected search output to be map[string]map[string][]syspackage.SearchedPackage")
+	assert.Contains(t, pkgs, "My Local Repo")
+	assert.Contains(t, pkgs["My Local Repo"], arch)
+	require.Len(t, pkgs["My Local Repo"][arch], 1, "Expected to find 1 package in My Local Repo for arch " + arch)
+	assert.Equal(t, "base", pkgs["My Local Repo"][arch][0].Name)
+
+	// Sleep to guarantee directory mtime changes for Zypper's local refresh detection
+	time.Sleep(1100 * time.Millisecond)
 
 	// Add child RPM and update repo
 	env.ImportFile(filepath.Join("my-local-repo", "child-1.0-1."+arch+".rpm"), childRpmPath)
@@ -72,7 +80,12 @@ gpgcheck=0
 	require.NoError(t, err)
 
 	// Search for child package
-	pkgs, err = rpm.SearchPackageSysCall(syspackage.SearchPackageParams{Name: "child"})
-	require.Len(t, pkgs, 1, "Expected to find 1 package")
-	assert.Equal(t, "child", pkgs[0]["name"])
+	pkgsAny, err = rpm.SearchPackageSysCall(syspackage.SearchPackageParams{Name: "child"})
+	require.NoError(t, err)
+	pkgs, ok = pkgsAny.(map[string]map[string][]syspackage.SearchedPackage)
+	require.True(t, ok, "Expected search output to be map[string]map[string][]syspackage.SearchedPackage")
+	assert.Contains(t, pkgs, "My Local Repo")
+	assert.Contains(t, pkgs["My Local Repo"], arch)
+	require.Len(t, pkgs["My Local Repo"][arch], 1, "Expected to find 1 package in My Local Repo for arch " + arch)
+	assert.Equal(t, "child", pkgs["My Local Repo"][arch][0].Name)
 }

@@ -228,7 +228,7 @@ func (rpm RPM) InstallPatchesSysCall(params syspackage.InstallPatchesParams) ([]
 	}
 }
 
-func (rpm RPM) SearchPackageSysCall(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+func (rpm RPM) SearchPackageSysCall(params syspackage.SearchPackageParams) (any, error) {
 	switch rpm.mgr.mgrtype {
 	case Zypper:
 		return rpm.searchPackagesZypper(params)

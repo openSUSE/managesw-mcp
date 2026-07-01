@@ -146,7 +146,7 @@ func (dpkg DPKG) RefreshReposSysCall(name string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) (any, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

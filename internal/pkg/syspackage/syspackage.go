@@ -14,6 +14,11 @@ type SysPackageInfo struct {
 	Version string `json:"vers"`
 	Size    uint64 `json:"size"`
 }
+type SearchedPackage struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Status  string `json:"status"`
+}
 type SysPackageInterface interface {
 	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
 	QueryPackageSysCall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
@@ -22,7 +27,7 @@ type SysPackageInterface interface {
 	ModifyRepoSysCall(params ModifyRepoParams) (ret map[string]any, err error)
 	ListPatchesSysCall(params ListPatchesParams) ([]map[string]any, error)
 	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
-	SearchPackageSysCall(params SearchPackageParams) ([]map[string]any, error)
+	SearchPackageSysCall(params SearchPackageParams) (any, error)
 	InstallPackageSysCall(params InstallPackageParams) (string, error)
 	RemovePackageSysCall(params RemovePackageParams) (string, error)
 	UpdatePackageSysCall(params UpdatePackageParams) (string, error)

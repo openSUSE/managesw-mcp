@@ -156,7 +156,7 @@ func (rpm RPM) listPatchesZypper(params syspackage.ListPatchesParams) ([]map[str
 	return result, nil
 }
 
-func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) (map[string]map[string][]syspackage.SearchedPackage, error) {
 	args := rpm.zypperArgs()
 	args = append(args, "--xmlout", "se", "-s")
 	if len(params.Repos) > 0 {
@@ -167,26 +167,51 @@ func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) ([]ma
 	args = append(args, params.Name)
 	cmd := exec.Command(rpm.mgr.mgrpath, args...)
 	output, err := cmd.CombinedOutput()
+	result := make(map[string]map[string][]syspackage.SearchedPackage)
 	if err != nil {
-		return nil, err
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 104 {
+			return result, nil
+		}
+		return nil, fmt.Errorf("zypper search failed: %w, output: %s", err, string(output))
 	}
 
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(output); err != nil {
 		return nil, err
 	}
-
-	var result []map[string]any
 	for _, solElement := range doc.FindElements("//solvable-list/solvable") {
-		pkgMap := make(map[string]any)
+		var name, version, status, arch, repo string
 		for _, attr := range solElement.Attr {
-			if attr.Key == "edition" {
-				pkgMap["version"] = attr.Value
-			} else {
-				pkgMap[attr.Key] = attr.Value
+			switch attr.Key {
+			case "name":
+				name = attr.Value
+			case "edition":
+				version = attr.Value
+			case "status":
+				status = attr.Value
+			case "arch":
+				arch = attr.Value
+			case "repository":
+				repo = attr.Value
 			}
 		}
-		result = append(result, pkgMap)
+		if repo == "" {
+			repo = "unknown"
+		}
+		if arch == "" {
+			arch = "unknown"
+		}
+
+		if _, exists := result[repo]; !exists {
+			result[repo] = make(map[string][]syspackage.SearchedPackage)
+		}
+
+		pkg := syspackage.SearchedPackage{
+			Name:    name,
+			Version: version,
+			Status:  status,
+		}
+		result[repo][arch] = append(result[repo][arch], pkg)
 	}
 	return result, nil
 }
