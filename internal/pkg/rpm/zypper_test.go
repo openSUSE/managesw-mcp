@@ -66,7 +66,7 @@ gpgcheck=0
 	require.True(t, ok, "Expected search output to be map[string]map[string][]syspackage.SearchedPackage")
 	assert.Contains(t, pkgs, "My Local Repo")
 	assert.Contains(t, pkgs["My Local Repo"], arch)
-	require.Len(t, pkgs["My Local Repo"][arch], 1, "Expected to find 1 package in My Local Repo for arch " + arch)
+	require.Len(t, pkgs["My Local Repo"][arch], 1, "Expected to find 1 package in My Local Repo for arch "+arch)
 	assert.Equal(t, "base", pkgs["My Local Repo"][arch][0].Name)
 
 	// Sleep to guarantee directory mtime changes for Zypper's local refresh detection
@@ -86,6 +86,6 @@ gpgcheck=0
 	require.True(t, ok, "Expected search output to be map[string]map[string][]syspackage.SearchedPackage")
 	assert.Contains(t, pkgs, "My Local Repo")
 	assert.Contains(t, pkgs["My Local Repo"], arch)
-	require.Len(t, pkgs["My Local Repo"][arch], 1, "Expected to find 1 package in My Local Repo for arch " + arch)
+	require.Len(t, pkgs["My Local Repo"][arch], 1, "Expected to find 1 package in My Local Repo for arch "+arch)
 	assert.Equal(t, "child", pkgs["My Local Repo"][arch][0].Name)
 }

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/suse/managesw-mcp/internal/pkg/testenv"
 	"github.com/stretchr/testify/assert"
+	"github.com/suse/managesw-mcp/internal/pkg/testenv"
 )
 
 func TestListInstalledPackagesSysCall(t *testing.T) {
