@@ -14,12 +14,14 @@ import (
 type DPKG struct {
 	dpkgbin   string
 	dpkgquery string
+	aptcache  string
 }
 
-func New(dpkgbin string, dpkgquery string) DPKG {
+func New(dpkgbin string, dpkgquery string, aptcache string) DPKG {
 	return DPKG{
 		dpkgbin:   dpkgbin,
 		dpkgquery: dpkgquery,
+		aptcache:  aptcache,
 	}
 }
 
@@ -147,7 +149,158 @@ func (dpkg DPKG) RefreshReposSysCall(name string) error {
 }
 
 func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) (any, error) {
-	return nil, fmt.Errorf("not implemented")
+	aptcache := dpkg.aptcache
+	if aptcache == "" {
+		var err error
+		aptcache, err = exec.LookPath("apt-cache")
+		if err != nil {
+			return nil, fmt.Errorf("apt-cache binary not found: %w", err)
+		}
+	}
+
+	// First search for package names using apt-cache search
+	cmd := exec.Command(aptcache, "search", "--names-only", params.Name)
+	output, err := cmd.CombinedOutput()
+	result := make(map[string]map[string][]syspackage.SearchedPackage)
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			return result, nil
+		}
+		return nil, fmt.Errorf("apt-cache search failed: %w, output: %s", err, string(output))
+	}
+
+	var pkgNames []string
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, " - ", 2)
+		if len(parts) > 0 {
+			pkgName := strings.TrimSpace(parts[0])
+			if pkgName != "" {
+				pkgNames = append(pkgNames, pkgName)
+			}
+		}
+	}
+
+	if len(pkgNames) == 0 {
+		return result, nil
+	}
+
+	// Cap search to a reasonable number to prevent calling madison with thousands of arguments
+	if len(pkgNames) > 200 {
+		pkgNames = pkgNames[:200]
+	}
+
+	// Run apt-cache madison to get structured version and repository info
+	args := append([]string{"madison"}, pkgNames...)
+	cmdMadison := exec.Command(aptcache, args...)
+	madisonOutput, err := cmdMadison.CombinedOutput()
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			madisonOutput = []byte{}
+		} else {
+			return nil, fmt.Errorf("apt-cache madison failed: %w, output: %s", err, string(madisonOutput))
+		}
+	}
+
+	// Query installed packages with matching pattern to determine status
+	installedMap := make(map[string]string)
+	queryName := params.Name
+	if !strings.Contains(queryName, "*") && !strings.Contains(queryName, "?") {
+		queryName = "*" + queryName + "*"
+	}
+	installedPkgs, err := dpkg.ListInstalledPackagesSysCall(queryName)
+	if err == nil {
+		for _, p := range installedPkgs {
+			installedMap[p.Name] = p.Version
+		}
+	}
+
+	// Parse madison output
+	scannerMadison := bufio.NewScanner(bytes.NewReader(madisonOutput))
+	for scannerMadison.Scan() {
+		line := scannerMadison.Text()
+		parts := strings.Split(line, "|")
+		if len(parts) != 3 {
+			continue
+		}
+		name := strings.TrimSpace(parts[0])
+		version := strings.TrimSpace(parts[1])
+		sourceStr := strings.TrimSpace(parts[2])
+
+		sourceFields := strings.Fields(sourceStr)
+		repo := "unknown"
+		arch := "unknown"
+		if len(sourceFields) >= 3 {
+			repo = sourceFields[0]
+			arch = sourceFields[2]
+		} else if len(sourceFields) > 0 {
+			repo = sourceFields[0]
+		}
+
+		// Filter by requested repositories if supplied
+		if len(params.Repos) > 0 {
+			matched := false
+			for _, r := range params.Repos {
+				if strings.Contains(strings.ToLower(repo), strings.ToLower(r)) || strings.Contains(strings.ToLower(r), strings.ToLower(repo)) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		status := "v"
+
+		if _, exists := result[repo]; !exists {
+			result[repo] = make(map[string][]syspackage.SearchedPackage)
+		}
+
+		pkg := syspackage.SearchedPackage{
+			Name:    name,
+			Version: version,
+			Status:  status,
+		}
+		result[repo][arch] = append(result[repo][arch], pkg)
+	}
+
+	// Add installed packages to "System" repository to mirror zypper behavior
+	for instName, instVer := range installedMap {
+		repo := "System"
+		arch := "unknown"
+
+		// Filter system packages if Repos was specified (and didn't include system)
+		if len(params.Repos) > 0 {
+			matched := false
+			for _, r := range params.Repos {
+				if strings.Contains(strings.ToLower(repo), strings.ToLower(r)) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		if _, exists := result[repo]; !exists {
+			result[repo] = make(map[string][]syspackage.SearchedPackage)
+		}
+
+		pkg := syspackage.SearchedPackage{
+			Name:    instName,
+			Version: instVer,
+			Status:  "i",
+		}
+		result[repo][arch] = append(result[repo][arch], pkg)
+	}
+
+	return result, nil
 }
 
 func (dpkg DPKG) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {

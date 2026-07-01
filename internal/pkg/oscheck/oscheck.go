@@ -40,7 +40,8 @@ func NewPkg(root string) syspackage.SysPackage {
 		cmd := exec.Command(dpkgquery, args...)
 		dpkgCmdOut, err := cmd.Output()
 		if err == nil && len(dpkgCmdOut) > 0 {
-			return syspackage.SysPackage{dpkg.New(dpkgpath, dpkgquery)}
+			aptcache, _ := exec.LookPath("apt-cache")
+			return syspackage.SysPackage{dpkg.New(dpkgpath, dpkgquery, aptcache)}
 		}
 	}
 nodpkg:

@@ -126,48 +126,73 @@ func (rpm RPM) refreshReposDnf(name string) error {
 	return nil
 }
 
-func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) ([]map[string]any, error) {
+func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) (map[string]map[string][]syspackage.SearchedPackage, error) {
 	args := []string{}
 	if rpm.root != "" {
 		args = append(args, "--root", rpm.root)
 	}
-	args = append(args, "search")
+	args = append(args, "repoquery", "--queryformat", "%{name}\t%{repoid}\t%{arch}\t%{version}-%{release}")
 	if len(params.Repos) > 0 {
 		for _, repo := range params.Repos {
 			args = append(args, "--repo", repo)
 		}
 	}
-	args = append(args, params.Name)
+
+	query := params.Name
+	if !strings.Contains(query, "*") && !strings.Contains(query, "?") {
+		query = "*" + query + "*"
+	}
+	args = append(args, query)
 	cmd := exec.Command(rpm.mgr.mgrpath, args...)
 	output, err := cmd.CombinedOutput()
+	result := make(map[string]map[string][]syspackage.SearchedPackage)
 	if err != nil {
-		return nil, err
-	}
-
-	var packages []map[string]any
-	scanner := bufio.NewScanner(bytes.NewReader(output))
-	var currentPackage map[string]any
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "=======") {
-			if currentPackage != nil {
-				packages = append(packages, currentPackage)
-			}
-			currentPackage = make(map[string]any)
-		} else if currentPackage != nil {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				currentPackage[key] = value
-			}
+		if _, ok := err.(*exec.ExitError); ok {
+			return result, nil
 		}
-	}
-	if currentPackage != nil {
-		packages = append(packages, currentPackage)
+		return nil, fmt.Errorf("dnf repoquery failed: %w, output: %s", err, string(output))
 	}
 
-	return packages, nil
+	scanner := bufio.NewScanner(bytes.NewReader(output))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) != 4 {
+			continue
+		}
+		name := parts[0]
+		repo := parts[1]
+		arch := parts[2]
+		version := parts[3]
+
+		status := "v"
+		if repo == "@System" {
+			repo = "System"
+			status = "i"
+		}
+		if repo == "" {
+			repo = "unknown"
+		}
+		if arch == "" {
+			arch = "unknown"
+		}
+
+		if _, exists := result[repo]; !exists {
+			result[repo] = make(map[string][]syspackage.SearchedPackage)
+		}
+
+		pkg := syspackage.SearchedPackage{
+			Name:    name,
+			Version: version,
+			Status:  status,
+		}
+		result[repo][arch] = append(result[repo][arch], pkg)
+	}
+
+	return result, nil
 }
 
 func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string, error) {
