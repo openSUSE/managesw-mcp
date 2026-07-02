@@ -47,7 +47,7 @@ func (sysPkg SysPackage) List(ctx context.Context, request *mcp.CallToolRequest,
 	for _, pkg := range list {
 		jsonByte, err := json.Marshal(pkg)
 		if err != nil {
-			return nil, nil, fmt.Errorf("could not unmarshall packageInfo: %w", err)
+			return nil, nil, fmt.Errorf("could not unmarshal packageInfo: %w", err)
 		}
 		txtContentList = append(txtContentList, &mcp.TextContent{
 			Text: string(jsonByte),
@@ -108,7 +108,7 @@ func GetQueryPackageParamsSchema() (*jsonschema.Schema, error) {
 		validList = append(validList, any(s))
 	}
 	schema.Properties["mode"].Enum = validList
-	schema.Properties["mode"].Default = []byte("info")
+	schema.Properties["mode"].Default = json.RawMessage("\"info\"")
 	return schema, nil
 }
 
@@ -126,7 +126,7 @@ func (sysPkg SysPackage) Query(ctx context.Context, request *mcp.CallToolRequest
 	}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on query, couldn't marshall result: %v", err)
+		return nil, nil, fmt.Errorf("error on query, couldn't marshal result: %v", err)
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -145,14 +145,14 @@ type ListReposParam struct {
 	Name string `json:"name,omitempty" jsonschema:"Name of the repository to list. When omitted all repos are listed."`
 }
 
-func (sysPkg SysPackage) ListRepo(ctx context.Context, request *mcp.CallToolRequest, params ListPackageParams) (*mcp.CallToolResult, any, error) {
+func (sysPkg SysPackage) ListRepo(ctx context.Context, request *mcp.CallToolRequest, params ListReposParam) (*mcp.CallToolResult, any, error) {
 	result, err := sysPkg.ListReposSysCall(params.Name)
 	if err != nil {
 		return nil, nil, err
 	}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on query, couldn't marshall result: %v", err)
+		return nil, nil, fmt.Errorf("error on query, couldn't marshal result: %v", err)
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -182,7 +182,7 @@ func (sysPkg SysPackage) ModifyRepo(ctx context.Context, request *mcp.CallToolRe
 	}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on query, couldn't marshall result: %v", err)
+		return nil, nil, fmt.Errorf("error on query, couldn't marshal result: %v", err)
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -219,7 +219,7 @@ func (sysPkg SysPackage) ListPatches(ctx context.Context, request *mcp.CallToolR
 	}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on query, couldn't marshall result: %v", err)
+		return nil, nil, fmt.Errorf("error on query, couldn't marshal result: %v", err)
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -242,7 +242,7 @@ func (sysPkg SysPackage) InstallPatches(ctx context.Context, request *mcp.CallTo
 	}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on query, couldn't marshall result: %v", err)
+		return nil, nil, fmt.Errorf("error on query, couldn't marshal result: %v", err)
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -256,6 +256,44 @@ func (sysPkg SysPackage) InstallPatches(ctx context.Context, request *mcp.CallTo
 type SearchPackageParams struct {
 	Name  string   `json:"name" jsonschema:"Name of the package to search for."`
 	Repos []string `json:"repos,omitempty" jsonschema:"A list of repositories to search in. This is optional and should only be used if explicitly requested. If not supplied, all enabled repositories are used."`
+	Exact bool     `json:"exact,omitempty" jsonschema:"Match the package name exactly, if not set substrings will also be matched."`
+}
+
+func (sysPkg SysPackage) CreateSearchPackageSchema() (*jsonschema.Schema, error) {
+	inputSchema, err := jsonschema.For[SearchPackageParams](nil)
+	if err != nil {
+		return nil, err
+	}
+	repos, err := sysPkg.ListReposSysCall("")
+	if err != nil || len(repos) == 0 {
+		return inputSchema, nil
+	}
+
+	var validList []any
+	for _, repo := range repos {
+		var id string
+		if v, ok := repo["alias"].(string); ok {
+			id = v
+		} else if v, ok := repo["Repo-id"].(string); ok {
+			id = v
+		} else if v, ok := repo["id"].(string); ok {
+			id = v
+		}
+		if id != "" {
+			validList = append(validList, id)
+		}
+	}
+
+	if len(validList) > 0 {
+		if inputSchema.Properties["repos"] != nil {
+			if inputSchema.Properties["repos"].Items == nil {
+				inputSchema.Properties["repos"].Items = &jsonschema.Schema{Type: "string"}
+			}
+			inputSchema.Properties["repos"].Items.Enum = validList
+		}
+	}
+
+	return inputSchema, nil
 }
 
 func (sysPkg SysPackage) SearchPackage(ctx context.Context, request *mcp.CallToolRequest, params SearchPackageParams) (*mcp.CallToolResult, any, error) {
@@ -265,7 +303,7 @@ func (sysPkg SysPackage) SearchPackage(ctx context.Context, request *mcp.CallToo
 	}
 	jsonByte, err := json.Marshal(result)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error on query, couldn't marshall result: %v", err)
+		return nil, nil, fmt.Errorf("error on query, couldn't marshal result: %v", err)
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{

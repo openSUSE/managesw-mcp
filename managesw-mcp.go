@@ -9,6 +9,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/suse/managesw-mcp/internal/pkg/oscheck"
+	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
 var httpAddr = flag.String("http", "", "if set, use streamable HTTP at this address, instead of stdin/stdout")
@@ -26,10 +27,14 @@ func main() {
 		Name:        "list_packages",
 		Description: "List the installed packages on the system.",
 	}, packageMgr.List)
+
+	querySchema, _ := syspackage.GetQueryPackageParamsSchema()
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "query_package",
 		Description: "Query information about a package which is installed on the system or available in the repository.",
+		InputSchema: querySchema,
 	}, packageMgr.Query)
+
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_repos",
 		Description: "List the configured package repositories on the system, including details such as their names, URLs, and enabled status. This tool provides an overview of where packages are sourced from.",
@@ -46,17 +51,20 @@ func main() {
 		Name:        "install_patches",
 		Description: "Install patches on the system. This can be used to install all available patches or a subset of patches based on their category or severity.",
 	}, packageMgr.InstallPatches)
+
+	searchSchema, _ := packageMgr.CreateSearchPackageSchema()
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "search_package",
 		Description: "Search for a package in the enabled repositories. Wildcards are supported.",
+		InputSchema: searchSchema,
 	}, packageMgr.SearchPackage)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "install_package",
-		Description: "Install a package and it's depencies on the system from the online repositories.",
+		Description: "Install a package and its dependencies on the system from the online repositories.",
 	}, packageMgr.InstallPackage)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "remove_package",
-		Description: "Remove a package and it's depencies on the system.",
+		Description: "Remove a package and its dependencies on the system.",
 	}, packageMgr.RemovePackage)
 	if *httpAddr != "" {
 		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {

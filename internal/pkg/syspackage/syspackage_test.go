@@ -19,3 +19,40 @@ func TestSysPackageNoPkg(t *testing.T) {
 
 	assert.Equal(t, "nopkg", sysPkg.PkgType(), "Should be nopkg")
 }
+
+type mockSysPackage struct {
+	nopkgs.NoPkg
+}
+
+func (m mockSysPackage) ListReposSysCall(name string) ([]map[string]any, error) {
+	return []map[string]any{
+		{"alias": "repo1", "name": "Repo 1"},
+		{"Repo-id": "repo2", "name": "Repo 2"},
+		{"id": "repo3", "name": "Repo 3"},
+	}, nil
+}
+
+func TestCreateSearchPackageSchema(t *testing.T) {
+	// Case 1: NoPkg (where ListReposSysCall fails or is not implemented)
+	sysPkgNoPkg := syspackage.SysPackage{
+		SysPackageInterface: &nopkgs.NoPkg{},
+	}
+	schema, err := sysPkgNoPkg.CreateSearchPackageSchema()
+	assert.NoError(t, err)
+	assert.NotNil(t, schema)
+	assert.Contains(t, schema.Properties, "repos")
+	if schema.Properties["repos"].Items != nil {
+		assert.Empty(t, schema.Properties["repos"].Items.Enum)
+	}
+
+	// Case 2: Mock with repos
+	sysPkgMock := syspackage.SysPackage{
+		SysPackageInterface: &mockSysPackage{},
+	}
+	schemaMock, err := sysPkgMock.CreateSearchPackageSchema()
+	assert.NoError(t, err)
+	assert.NotNil(t, schemaMock)
+	assert.Contains(t, schemaMock.Properties, "repos")
+	assert.NotNil(t, schemaMock.Properties["repos"].Items)
+	assert.Equal(t, []any{"repo1", "repo2", "repo3"}, schemaMock.Properties["repos"].Items.Enum)
+}

@@ -164,6 +164,9 @@ func (rpm RPM) searchPackagesZypper(params syspackage.SearchPackageParams) (map[
 			args = append(args, "--repo", repo)
 		}
 	}
+	if params.Exact {
+		args = append(args, "-x")
+	}
 	args = append(args, params.Name)
 	cmd := exec.Command(rpm.mgr.mgrpath, args...)
 	output, err := cmd.CombinedOutput()
