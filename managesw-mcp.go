@@ -23,9 +23,11 @@ func main() {
 		Name:    "OS software management",
 		Version: "0.0.1"}, nil)
 	packageMgr := oscheck.NewPkg(*root)
+	listSchema, _ := packageMgr.CreateListPackageSchema()
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_packages",
 		Description: "List the installed packages on the system.",
+		InputSchema: listSchema,
 	}, packageMgr.List)
 
 	querySchema, _ := syspackage.GetQueryPackageParamsSchema()

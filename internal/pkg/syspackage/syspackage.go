@@ -10,9 +10,13 @@ import (
 )
 
 type SysPackageInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"vers"`
-	Size    uint64 `json:"size"`
+	Name        string              `json:"name"`
+	Version     string              `json:"vers"`
+	Size        uint64              `json:"size"`
+	FileList    []string            `json:"file_list,omitempty"`
+	Relations   map[string][]string `json:"relations,omitempty"`
+	Description string              `json:"description,omitempty"`
+	Changelog   string              `json:"changelog,omitempty"`
 }
 type SearchedPackage struct {
 	Name    string `json:"name"`
@@ -20,7 +24,7 @@ type SearchedPackage struct {
 	Status  string `json:"status"`
 }
 type SysPackageInterface interface {
-	ListInstalledPackagesSysCall(name string) ([]SysPackageInfo, error)
+	ListInstalledPackagesSysCall(params ListPackageParams) ([]SysPackageInfo, error)
 	QueryPackageSysCall(name string, mode QueryMode, lines int) (ret map[string]any, err error)
 	ListReposSysCall(name string) (ret []map[string]any, err error)
 	RefreshReposSysCall(name string) error
@@ -39,7 +43,7 @@ type SysPackage struct {
 }
 
 func (sysPkg SysPackage) List(ctx context.Context, request *mcp.CallToolRequest, params ListPackageParams) (*mcp.CallToolResult, any, error) {
-	list, err := sysPkg.ListInstalledPackagesSysCall(params.Name)
+	list, err := sysPkg.ListInstalledPackagesSysCall(params)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,7 +142,11 @@ func (sysPkg SysPackage) Query(ctx context.Context, request *mcp.CallToolRequest
 }
 
 type ListPackageParams struct {
-	Name string `json:"name,omitempty" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
+	Name        string   `json:"name,omitempty" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
+	Filelist    bool     `json:"file_list,omitempty" jsonschema: "List the of the files installed by this package"`
+	Relations   []string `json:"relations,omitempty" jsonschema:"Relationship which should be displayed."`
+	Description bool     `json:"description,omitempty" jsonschema:"Display also the description of the package"`
+	Changelog   uint     `json:"changelog,0" jsonschema:"Show the given number of lines of the changelog."`
 }
 
 type ListReposParam struct {
@@ -291,6 +299,23 @@ func (sysPkg SysPackage) CreateSearchPackageSchema() (*jsonschema.Schema, error)
 			}
 			inputSchema.Properties["repos"].Items.Enum = validList
 		}
+	}
+
+	return inputSchema, nil
+}
+
+func (sysPkg SysPackage) CreateListPackageSchema() (*jsonschema.Schema, error) {
+	inputSchema, err := jsonschema.For[ListPackageParams](nil)
+	if err != nil {
+		return nil, err
+	}
+	validList := []any{"requires", "recommends", "suggests", "supplements", "enhances", "provides", "conflicts", "obsoletes"}
+
+	if inputSchema.Properties["relations"] != nil {
+		if inputSchema.Properties["relations"].Items == nil {
+			inputSchema.Properties["relations"].Items = &jsonschema.Schema{Type: "string"}
+		}
+		inputSchema.Properties["relations"].Items.Enum = validList
 	}
 
 	return inputSchema, nil

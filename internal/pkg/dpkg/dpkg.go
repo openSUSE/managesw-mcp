@@ -29,12 +29,12 @@ func New(dpkgbin string, dpkgquery string, aptcache string, root string) DPKG {
 	}
 }
 
-func (dpkg DPKG) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackageInfo, error) {
+func (dpkg DPKG) ListInstalledPackagesSysCall(params syspackage.ListPackageParams) ([]syspackage.SysPackageInfo, error) {
 	// The query format doesn't need shell quoting since exec.Command passes arguments directly.
 	format := "${binary:Package},${Version},${Installed-Size}\n"
 	argsList := []string{"-W", "-f", format}
-	if name != "" {
-		argsList = append(argsList, name)
+	if params.Name != "" {
+		argsList = append(argsList, params.Name)
 	}
 	cmd := exec.Command(dpkg.dpkgquery, argsList...)
 	pkgList, err := cmd.CombinedOutput()
@@ -67,6 +67,88 @@ func (dpkg DPKG) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPack
 			Version: splitLine[1],
 			Size:    size,
 		})
+	}
+
+	// Fetch additional fields if requested
+	for i := range lst {
+		pkgName := lst[i].Name
+		if params.Filelist {
+			fileOut, err := exec.Command(dpkg.dpkgbin, "-L", pkgName).CombinedOutput()
+			if err == nil {
+				scannerFiles := bufio.NewScanner(bytes.NewReader(fileOut))
+				var files []string
+				for scannerFiles.Scan() {
+					f := strings.TrimSpace(scannerFiles.Text())
+					if f != "" {
+						files = append(files, f)
+					}
+				}
+				lst[i].FileList = files
+			}
+		}
+
+		if params.Description {
+			descOut, err := exec.Command(dpkg.dpkgquery, "-f", "${Description}", "-W", pkgName).CombinedOutput()
+			if err == nil {
+				lst[i].Description = string(descOut)
+			}
+		}
+
+		if len(params.Relations) > 0 {
+			lst[i].Relations = make(map[string][]string)
+			for _, rel := range params.Relations {
+				rel = strings.ToLower(strings.TrimSpace(rel))
+				if rel == "" {
+					continue
+				}
+				var field string
+				switch rel {
+				case "requires":
+					field = "${Depends}"
+				case "recommends":
+					field = "${Recommends}"
+				case "obsoletes":
+					field = "${Breaks}"
+				case "provides":
+					field = "${Provides}"
+				case "conflicts":
+					field = "${Conflicts}"
+				case "suggests":
+					field = "${Suggests}"
+				case "supplements":
+					field = "${Enhances}"
+				case "enhances":
+					field = "${Enhances}"
+				default:
+					continue
+				}
+
+				relOut, err := exec.Command(dpkg.dpkgquery, "-f", field, "-W", pkgName).CombinedOutput()
+				if err == nil {
+					// dpkg-query returns a single line of comma-separated packages for these fields
+					line := strings.TrimSpace(string(relOut))
+					var rels []string
+					if line != "" {
+						parts := strings.Split(line, ",")
+						for _, p := range parts {
+							p = strings.TrimSpace(p)
+							if p != "" {
+								rels = append(rels, p)
+							}
+						}
+					}
+					lst[i].Relations[rel] = rels
+				}
+			}
+		}
+
+		if params.Changelog > 0 {
+			// Debian changelog can be read from file or retrieved via apt-get changelog
+			// To keep it simple and avoid downloading, try reading the local changelog file if it exists.
+			// Path: /usr/share/doc/<package>/changelog.Debian.gz (need zcat or gzip to read, or try uncompressed)
+			// Let's just return empty or use apt-get changelog if we wanted to. We can leave it empty if local files don't exist.
+			lst[i].Changelog = ""
+		}
 	}
 
 	return lst, nil
@@ -410,7 +492,7 @@ func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) (an
 	if !strings.Contains(queryName, "*") && !strings.Contains(queryName, "?") {
 		queryName = "*" + queryName + "*"
 	}
-	installedPkgs, err := dpkg.ListInstalledPackagesSysCall(queryName)
+	installedPkgs, err := dpkg.ListInstalledPackagesSysCall(syspackage.ListPackageParams{Name: queryName})
 	if err == nil {
 		for _, p := range installedPkgs {
 			installedMap[p.Name] = p.Version

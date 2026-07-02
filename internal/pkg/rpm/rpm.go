@@ -55,7 +55,7 @@ func NewRPMTest(path string, systype RPMType, mgrpath string, root string) RPM {
 }
 
 // ListInstalledPackagesSysCall lists the installed packages given by their name pattern.
-func (rpm RPM) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackageInfo, error) {
+func (rpm RPM) ListInstalledPackagesSysCall(params syspackage.ListPackageParams) ([]syspackage.SysPackageInfo, error) {
 	// The query format doesn't need shell quoting since exec.Command passes arguments directly.
 	qf := `%{NAME},%{VERSION},%{SIZE}\n`
 	args := []string{}
@@ -65,8 +65,8 @@ func (rpm RPM) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackag
 		args = append(args, "--root", rpm.root)
 	}
 	args = append(args, "-qa", "--qf", qf)
-	if name != "" {
-		args = append(args, name)
+	if params.Name != "" {
+		args = append(args, params.Name)
 	}
 
 	cmd := exec.Command(rpm.rpmpath, args...)
@@ -102,6 +102,118 @@ func (rpm RPM) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackag
 			Version: splitLine[1],
 			Size:    size,
 		})
+	}
+
+	// Fetch additional fields if requested
+	for i := range lst {
+		pkgName := lst[i].Name
+		if params.Filelist {
+			fileArgs := []string{}
+			if rpm.isTest {
+				fileArgs = append(fileArgs, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+			} else if rpm.root != "" {
+				fileArgs = append(fileArgs, "--root", rpm.root)
+			}
+			fileArgs = append(fileArgs, "-ql", pkgName)
+			fileListOut, err := exec.Command(rpm.rpmpath, fileArgs...).CombinedOutput()
+			if err == nil {
+				scannerFiles := bufio.NewScanner(bytes.NewReader(fileListOut))
+				var files []string
+				for scannerFiles.Scan() {
+					f := strings.TrimSpace(scannerFiles.Text())
+					if f != "" {
+						files = append(files, f)
+					}
+				}
+				lst[i].FileList = files
+			}
+		}
+
+		if params.Description {
+			descArgs := []string{}
+			if rpm.isTest {
+				descArgs = append(descArgs, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+			} else if rpm.root != "" {
+				descArgs = append(descArgs, "--root", rpm.root)
+			}
+			descArgs = append(descArgs, "-q", "--qf", "%{DESCRIPTION}", pkgName)
+			descOut, err := exec.Command(rpm.rpmpath, descArgs...).CombinedOutput()
+			if err == nil {
+				lst[i].Description = string(descOut)
+			}
+		}
+
+		if len(params.Relations) > 0 {
+			lst[i].Relations = make(map[string][]string)
+			for _, rel := range params.Relations {
+				rel = strings.ToLower(strings.TrimSpace(rel))
+				if rel == "" {
+					continue
+				}
+				var relFlag string
+				switch rel {
+				case "requires":
+					relFlag = "--requires"
+				case "recommends":
+					relFlag = "--recommends"
+				case "obsoletes":
+					relFlag = "--obsoletes"
+				case "provides":
+					relFlag = "--provides"
+				case "conflicts":
+					relFlag = "--conflicts"
+				case "suggests":
+					relFlag = "--suggests"
+				case "supplements":
+					relFlag = "--supplements"
+				case "enhances":
+					relFlag = "--enhances"
+				default:
+					continue
+				}
+
+				relArgs := []string{}
+				if rpm.isTest {
+					relArgs = append(relArgs, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+				} else if rpm.root != "" {
+					relArgs = append(relArgs, "--root", rpm.root)
+				}
+				relArgs = append(relArgs, "-q", relFlag, pkgName)
+				relOut, err := exec.Command(rpm.rpmpath, relArgs...).CombinedOutput()
+				if err == nil {
+					scannerRel := bufio.NewScanner(bytes.NewReader(relOut))
+					var rels []string
+					for scannerRel.Scan() {
+						r := strings.TrimSpace(scannerRel.Text())
+						if r != "" && !strings.HasPrefix(r, "package ") && !strings.Contains(r, "is not installed") {
+							rels = append(rels, r)
+						}
+					}
+					lst[i].Relations[rel] = rels
+				}
+			}
+		}
+
+		if params.Changelog > 0 {
+			changeArgs := []string{}
+			if rpm.isTest {
+				changeArgs = append(changeArgs, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+			} else if rpm.root != "" {
+				changeArgs = append(changeArgs, "--root", rpm.root)
+			}
+			changeArgs = append(changeArgs, "-q", "--changelog", pkgName)
+			changeOut, err := exec.Command(rpm.rpmpath, changeArgs...).CombinedOutput()
+			if err == nil {
+				scannerChange := bufio.NewScanner(bytes.NewReader(changeOut))
+				var lines []string
+				var count uint
+				for scannerChange.Scan() && count < params.Changelog {
+					lines = append(lines, scannerChange.Text())
+					count++
+				}
+				lst[i].Changelog = strings.Join(lines, "\n")
+			}
+		}
 	}
 
 	return lst, nil

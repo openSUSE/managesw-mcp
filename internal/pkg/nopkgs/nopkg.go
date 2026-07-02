@@ -8,7 +8,7 @@ import (
 
 type NoPkg struct{}
 
-func (n NoPkg) ListInstalledPackagesSysCall(name string) ([]syspackage.SysPackageInfo, error) {
+func (n NoPkg) ListInstalledPackagesSysCall(params syspackage.ListPackageParams) ([]syspackage.SysPackageInfo, error) {
 	return []syspackage.SysPackageInfo{}, fmt.Errorf("No package manager found")
 }
 func (n NoPkg) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines int) (ret map[string]any, err error) {
