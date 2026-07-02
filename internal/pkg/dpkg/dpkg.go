@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -15,13 +17,15 @@ type DPKG struct {
 	dpkgbin   string
 	dpkgquery string
 	aptcache  string
+	root      string
 }
 
-func New(dpkgbin string, dpkgquery string, aptcache string) DPKG {
+func New(dpkgbin string, dpkgquery string, aptcache string, root string) DPKG {
 	return DPKG{
 		dpkgbin:   dpkgbin,
 		dpkgquery: dpkgquery,
 		aptcache:  aptcache,
+		root:      root,
 	}
 }
 
@@ -128,12 +132,179 @@ func (dpkg DPKG) QueryPackageSysCall(name string, mode syspackage.QueryMode, lin
 
 	return result, nil
 }
+func parseAptListFile(filePath string) (enabled bool, url string) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false, ""
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		isComment := false
+		if strings.HasPrefix(line, "#") {
+			isComment = true
+			line = strings.TrimSpace(strings.TrimPrefix(line, "#"))
+		}
+
+		if !strings.HasPrefix(line, "deb") && !strings.HasPrefix(line, "deb-src") {
+			continue
+		}
+
+		if !isComment {
+			enabled = true
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			urlIdx := 1
+			if strings.HasPrefix(fields[1], "[") {
+				for i := 1; i < len(fields); i++ {
+					if !strings.HasPrefix(fields[i], "[") && !strings.Contains(fields[i], "=") {
+						urlIdx = i
+						break
+					}
+				}
+			}
+			if urlIdx < len(fields) {
+				if url == "" {
+					url = fields[urlIdx]
+				}
+			}
+		}
+	}
+	return enabled, url
+}
+
+func (dpkg DPKG) getRepos() ([]map[string]any, error) {
+	var repos []map[string]any
+
+	sourcesListPath := filepath.Join(dpkg.root, "etc/apt/sources.list")
+	if _, err := os.Stat(sourcesListPath); err == nil {
+		enabled, url := parseAptListFile(sourcesListPath)
+		enabledStr := "0"
+		if enabled {
+			enabledStr = "1"
+		}
+		repos = append(repos, map[string]any{
+			"alias":   "sources.list",
+			"name":    "sources.list",
+			"enabled": enabledStr,
+			"url":     url,
+		})
+	}
+
+	sourcesListDDir := filepath.Join(dpkg.root, "etc/apt/sources.list.d")
+	files, err := os.ReadDir(sourcesListDDir)
+	if err == nil {
+		for _, file := range files {
+			if !file.IsDir() && strings.HasSuffix(file.Name(), ".list") {
+				alias := strings.TrimSuffix(file.Name(), ".list")
+				filePath := filepath.Join(sourcesListDDir, file.Name())
+				enabled, url := parseAptListFile(filePath)
+				enabledStr := "0"
+				if enabled {
+					enabledStr = "1"
+				}
+				repos = append(repos, map[string]any{
+					"alias":   alias,
+					"name":    alias,
+					"enabled": enabledStr,
+					"url":     url,
+				})
+			}
+		}
+	}
+
+	return repos, nil
+}
+
 func (dpkg DPKG) ListReposSysCall(name string) ([]map[string]any, error) {
-	return nil, fmt.Errorf("not implemented")
+	allRepos, err := dpkg.getRepos()
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return allRepos, nil
+	}
+	var filtered []map[string]any
+	for _, repo := range allRepos {
+		if repo["alias"].(string) == name {
+			filtered = append(filtered, repo)
+		}
+	}
+	return filtered, nil
 }
 
 func (dpkg DPKG) ModifyRepoSysCall(params syspackage.ModifyRepoParams) (map[string]any, error) {
-	return nil, fmt.Errorf("not implemented")
+	if params.Name == "" {
+		return nil, fmt.Errorf("repository name is required")
+	}
+
+	var filePath string
+	if params.Name == "sources.list" {
+		filePath = filepath.Join(dpkg.root, "etc/apt/sources.list")
+	} else {
+		filePath = filepath.Join(dpkg.root, "etc/apt/sources.list.d", params.Name+".list")
+	}
+
+	if params.RemoveRepos {
+		_ = os.Remove(filePath)
+		return nil, nil
+	}
+
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
+	}
+
+	var line string
+	prefix := "deb"
+	if params.Disable {
+		prefix = "# deb"
+	}
+
+	options := ""
+	if params.NoGPGCheck {
+		options = "[trusted=yes] "
+	}
+
+	url := params.Url
+	if url == "" {
+		if _, err := os.Stat(filePath); err == nil {
+			_, existingUrl := parseAptListFile(filePath)
+			url = existingUrl
+		}
+	}
+
+	if url == "" {
+		return nil, fmt.Errorf("repository URL is required")
+	}
+
+	urlParts := strings.Fields(url)
+	if len(urlParts) == 1 && !strings.HasSuffix(urlParts[0], "./") {
+		line = fmt.Sprintf("%s %s%s ./", prefix, options, urlParts[0])
+	} else {
+		line = fmt.Sprintf("%s %s%s", prefix, options, url)
+	}
+
+	if err := os.WriteFile(filePath, []byte(line+"\n"), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write repository file: %w", err)
+	}
+
+	repos, err := dpkg.ListReposSysCall(params.Name)
+	if err != nil {
+		return nil, err
+	}
+	if len(repos) == 0 {
+		return nil, fmt.Errorf("could not get repository %s after modification", params.Name)
+	}
+	return repos[0], nil
 }
 
 func (dpkg DPKG) ListPatchesSysCall(params syspackage.ListPatchesParams) ([]map[string]any, error) {
@@ -145,7 +316,34 @@ func (dpkg DPKG) InstallPatchesSysCall(params syspackage.InstallPatchesParams) (
 }
 
 func (dpkg DPKG) RefreshReposSysCall(name string) error {
-	return fmt.Errorf("not implemented")
+	aptget, err := exec.LookPath("apt-get")
+	if err != nil {
+		return fmt.Errorf("apt-get binary not found: %w", err)
+	}
+
+	args := []string{}
+	if dpkg.root != "" {
+		args = append(args, "-o", "RootDir="+dpkg.root)
+	}
+	args = append(args, "update")
+
+	if name != "" {
+		var sourcelist string
+		if name == "sources.list" {
+			sourcelist = "sources.list"
+		} else {
+			sourcelist = filepath.Join("sources.list.d", name+".list")
+		}
+		args = append(args, "-o", "Dir::Etc::sourcelist="+sourcelist)
+		args = append(args, "-o", "Dir::Etc::sourceparts=none")
+	}
+
+	cmd := exec.Command(aptget, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("apt-get update failed: %w, output: %s", err, string(output))
+	}
+	return nil
 }
 
 func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) (any, error) {

@@ -138,7 +138,7 @@ func (sysPkg SysPackage) Query(ctx context.Context, request *mcp.CallToolRequest
 }
 
 type ListPackageParams struct {
-	Name string `json:"name" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
+	Name string `json:"name,omitempty" jsonschema:"Name pattern of the packages to be listed. Using an empty string will result in a list of all packages installed on the system."`
 }
 
 type ListReposParam struct {

@@ -50,7 +50,7 @@ fi
 	require.NoError(t, err)
 
 	// Create DPKG instance
-	d := New("dpkg", env.GetPath("bin/dpkg-query"), env.GetPath("bin/apt-cache"))
+	d := New("dpkg", env.GetPath("bin/dpkg-query"), env.GetPath("bin/apt-cache"), env.GetPath(""))
 
 	// Search for packages matching "test"
 	pkgsAny, err := d.SearchPackageSysCall(syspackage.SearchPackageParams{Name: "test"})
@@ -87,4 +87,84 @@ fi
 	assert.Equal(t, "test-pkg", pkgs["System"]["unknown"][0].Name)
 	assert.Equal(t, "1.2.3-1", pkgs["System"]["unknown"][0].Version)
 	assert.Equal(t, "i", pkgs["System"]["unknown"][0].Status)
+}
+
+func TestDpkgRepoManagement(t *testing.T) {
+	env := testenv.New(t)
+	defer env.RemoveAll()
+
+	binDir := env.GetPath("bin")
+	env.MkdirAll("bin")
+
+	oldPath := os.Getenv("PATH")
+	os.Setenv("PATH", binDir)
+	defer os.Setenv("PATH", oldPath)
+
+	// Mock apt-get
+	aptGetMock := `#!/bin/sh
+echo "Mock apt-get update called with: $@"
+`
+	env.WriteFile("bin/apt-get", aptGetMock)
+	err := os.Chmod(env.GetPath("bin/apt-get"), 0755)
+	require.NoError(t, err)
+
+	// Create DPKG instance
+	d := New("dpkg", "dpkg", "apt-cache", env.GetPath(""))
+
+	// 1. List repos when none exist
+	repos, err := d.ListReposSysCall("")
+	require.NoError(t, err)
+	assert.Empty(t, repos)
+
+	// 2. Add a repository
+	addParams := syspackage.ModifyRepoParams{
+		Name: "test-repo",
+		Url:  "http://example.com/debian",
+	}
+	repo, err := d.ModifyRepoSysCall(addParams)
+	require.NoError(t, err)
+	assert.Equal(t, "test-repo", repo["alias"])
+	assert.Equal(t, "1", repo["enabled"])
+	assert.Equal(t, "http://example.com/debian", repo["url"])
+
+	// 3. Verify repo exists in list
+	repos, err = d.ListReposSysCall("")
+	require.NoError(t, err)
+	require.Len(t, repos, 1)
+	assert.Equal(t, "test-repo", repos[0]["alias"])
+
+	// 4. Disable repository
+	disableParams := syspackage.ModifyRepoParams{
+		Name:    "test-repo",
+		Disable: true,
+	}
+	repo, err = d.ModifyRepoSysCall(disableParams)
+	require.NoError(t, err)
+	assert.Equal(t, "0", repo["enabled"])
+
+	// 5. Enable repository
+	enableParams := syspackage.ModifyRepoParams{
+		Name:    "test-repo",
+		Disable: false,
+	}
+	repo, err = d.ModifyRepoSysCall(enableParams)
+	require.NoError(t, err)
+	assert.Equal(t, "1", repo["enabled"])
+
+	// 6. Refresh repositories
+	err = d.RefreshReposSysCall("test-repo")
+	require.NoError(t, err)
+
+	// 7. Remove repository
+	removeParams := syspackage.ModifyRepoParams{
+		Name:        "test-repo",
+		RemoveRepos: true,
+	}
+	_, err = d.ModifyRepoSysCall(removeParams)
+	require.NoError(t, err)
+
+	// 8. Verify repository is removed
+	repos, err = d.ListReposSysCall("")
+	require.NoError(t, err)
+	assert.Empty(t, repos)
 }
