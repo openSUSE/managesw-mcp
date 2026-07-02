@@ -168,3 +168,53 @@ echo "Mock apt-get update called with: $@"
 	require.NoError(t, err)
 	assert.Empty(t, repos)
 }
+
+func TestDpkgQueryPackage(t *testing.T) {
+	env := testenv.New(t)
+	defer env.RemoveAll()
+
+	binDir := env.GetPath("bin")
+	env.MkdirAll("bin")
+
+	oldPath := os.Getenv("PATH")
+	os.Setenv("PATH", binDir)
+	defer os.Setenv("PATH", oldPath)
+
+	// Mock dpkg-query to simulate info and changelog querying
+	dpkgQueryMock := `#!/bin/sh
+if [ "$1" = "-s" ] && [ "$2" = "test-pkg" ]; then
+    echo "Package: test-pkg"
+    echo "Status: install ok installed"
+    echo "Installed-Size: 1024"
+elif [ "$1" = "--changelog" ] && [ "$2" = "test-pkg" ]; then
+    echo "test-pkg (1.2.3-1) unstable"
+    echo "  * Fix some bug"
+    echo "  * Another bugfix"
+    echo "  * Third line"
+fi
+`
+	env.WriteFile("bin/dpkg-query", dpkgQueryMock)
+	err := os.Chmod(env.GetPath("bin/dpkg-query"), 0755)
+	require.NoError(t, err)
+
+	// Create DPKG instance
+	d := New("dpkg", env.GetPath("bin/dpkg-query"), "apt-cache", env.GetPath(""))
+
+	// 1. Query info without changelog (lines = 0)
+	res, err := d.QueryPackageSysCall("test-pkg", syspackage.Info, 0)
+	require.NoError(t, err)
+	assert.Equal(t, "test-pkg", res["Package"])
+	assert.Equal(t, "install ok installed", res["Status"])
+	assert.Nil(t, res["changelog"])
+
+	// 2. Query info with changelog (lines = 2)
+	resWithChange, err := d.QueryPackageSysCall("test-pkg", syspackage.Info, 2)
+	require.NoError(t, err)
+	assert.Equal(t, "test-pkg", resWithChange["Package"])
+
+	changelog, ok := resWithChange["changelog"].([]string)
+	require.True(t, ok)
+	require.Len(t, changelog, 2)
+	assert.Equal(t, "test-pkg (1.2.3-1) unstable", changelog[0])
+	assert.Equal(t, "  * Fix some bug", changelog[1])
+}

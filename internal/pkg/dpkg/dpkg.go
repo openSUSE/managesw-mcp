@@ -173,9 +173,6 @@ func (dpkg DPKG) QueryPackageSysCall(name string, mode syspackage.QueryMode, lin
 	case syspackage.Obsoletes:
 		cmdArgs = []string{"-f", "${Breaks}", name}
 		resultKey = "obsoletes"
-	case syspackage.Changelog:
-		cmdArgs = []string{"--changelog", name}
-		resultKey = "changelog"
 	default:
 		return nil, fmt.Errorf("unsupported query mode: %v", mode)
 	}
@@ -200,6 +197,18 @@ func (dpkg DPKG) QueryPackageSysCall(name string, mode syspackage.QueryMode, lin
 				key := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
 				result[key] = value
+			}
+		}
+		if lines > 0 {
+			changeArgs := []string{"--changelog", name}
+			changeOut, err := exec.Command(dpkg.dpkgquery, changeArgs...).CombinedOutput()
+			if err == nil {
+				splittedLines := strings.Split(strings.TrimSpace(string(changeOut)), "\n")
+				if len(splittedLines) > lines {
+					result["changelog"] = splittedLines[:lines]
+				} else {
+					result["changelog"] = splittedLines
+				}
 			}
 		}
 	} else {

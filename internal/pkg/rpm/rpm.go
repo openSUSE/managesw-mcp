@@ -243,9 +243,6 @@ func (rpm RPM) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines
 	case syspackage.Obsoletes:
 		cmdArgs = append(cmdArgs, "-q", "--obsoletes", name)
 		resultKey = "obsoletes"
-	case syspackage.Changelog:
-		cmdArgs = append(cmdArgs, "-q", "--changelog", name)
-		resultKey = "changelog"
 	default:
 		return nil, fmt.Errorf("unsupported query mode: %v", mode)
 	}
@@ -269,6 +266,24 @@ func (rpm RPM) QueryPackageSysCall(name string, mode syspackage.QueryMode, lines
 				key := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
 				result[key] = value
+			}
+		}
+		if lines > 0 {
+			var changeArgs []string
+			if rpm.isTest {
+				changeArgs = append(changeArgs, "--dbpath", path.Join(rpm.root, "/var/lib/rpm"))
+			} else if rpm.root != "" {
+				changeArgs = append(changeArgs, "--root", rpm.root)
+			}
+			changeArgs = append(changeArgs, "-q", "--changelog", name)
+			changeOut, err := exec.Command(rpm.rpmpath, changeArgs...).CombinedOutput()
+			if err == nil {
+				splittedLines := strings.Split(string(changeOut), "\n")
+				if len(splittedLines) > lines {
+					result["changelog"] = splittedLines[:lines]
+				} else {
+					result["changelog"] = splittedLines
+				}
 			}
 		}
 	} else {

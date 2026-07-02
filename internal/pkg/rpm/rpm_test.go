@@ -51,3 +51,34 @@ func TestListInstalledPackagesSysCall(t *testing.T) {
 	assert.Contains(t, basePkgs[0].Relations, "conflicts", "Expected base package to have conflicts relations")
 	assert.Contains(t, basePkgs[0].Relations, "suggests", "Expected base package to have suggests relations")
 }
+
+func TestQueryPackageSysCall(t *testing.T) {
+	env := testenv.New(t)
+	defer env.RemoveAll()
+
+	// Path to the RPM files
+	rpmPath := "../../../test/rpmbuild/RPMS/x86_64/"
+
+	// Import RPMs
+	env.ImportRpm(filepath.Join(rpmPath, "base-1.0-1.x86_64.rpm"))
+
+	// Create a new RPM instance for testing
+	rpm := NewRPMTest("rpm", Zypper, "zypper", env.GetPath(""))
+
+	// Query package in Info mode without changelog (lines = 0)
+	res, err := rpm.QueryPackageSysCall("base", syspackage.Info, 0)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, res)
+	assert.Equal(t, "base", res["Name"])
+	assert.Nil(t, res["changelog"])
+
+	// Query package in Info mode with changelog (lines = 2)
+	resWithChange, err := rpm.QueryPackageSysCall("base", syspackage.Info, 2)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resWithChange)
+	assert.Equal(t, "base", resWithChange["Name"])
+
+	changelog, ok := resWithChange["changelog"].([]string)
+	assert.True(t, ok, "Expected changelog to be []string")
+	assert.Len(t, changelog, 2, "Expected 2 lines of changelog")
+}

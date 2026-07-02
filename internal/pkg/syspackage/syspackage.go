@@ -72,7 +72,6 @@ const (
 	Requires
 	Recommends
 	Obsoletes
-	Changelog
 )
 
 func getQueryModeFromString(modeStr string) QueryMode {
@@ -85,8 +84,6 @@ func getQueryModeFromString(modeStr string) QueryMode {
 		return Recommends
 	case "obsoletes":
 		return Obsoletes
-	case "changelog":
-		return Changelog
 	default:
 		return -1
 	}
@@ -95,11 +92,11 @@ func getQueryModeFromString(modeStr string) QueryMode {
 type QueryPackageParams struct {
 	Name  string `json:"name" jsonschema:"Name of the package to be queried."`
 	Mode  string `json:"mode" jsonschema:"The mode of the query"`
-	Lines int    `json:"lines,omitempty" jsonschema:"The number of lines for 'changelog','recommends','obsoletes','requires'. 'lines' < 0 will show all lines."`
+	Lines int    `json:"lines,omitempty" jsonschema:"The number of lines for 'recommends','obsoletes','requires', or 'changelog' (when mode is 'info' and lines > 0). 'lines' < 0 will show all lines."`
 }
 
 func ValidQueryModes() []string {
-	return []string{"info", "requires", "recommends", "obsoletes", "changelog"}
+	return []string{"info", "requires", "recommends", "obsoletes"}
 }
 
 func GetQueryPackageParamsSchema() (*jsonschema.Schema, error) {

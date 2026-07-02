@@ -19,3 +19,10 @@ chmod +x %{buildroot}/%{_prefix}/bin/base_command
 
 %files
 %{_prefix}/bin/base_command
+
+%changelog
+* Thu Jul 02 2026 Chris <chris@opensuse.org> - 1.0-1
+- Line 1 of changelog
+- Line 2 of changelog
+- Line 3 of changelog
+- Line 4 of changelog
