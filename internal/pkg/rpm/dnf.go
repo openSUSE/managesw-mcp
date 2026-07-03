@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -258,6 +259,11 @@ func (rpm RPM) installPackageDnf(ctx context.Context, request *mcp.CallToolReque
 	err = cmd.Wait()
 	if err != nil {
 		return out.String(), fmt.Errorf("dnf install failed: %w, output: %s", err, out.String())
+	}
+	parsed := syspackage.ParseDnfInstallOutput(out.String(), params.Name)
+	jsonBytes, err := json.MarshalIndent(parsed, "", "  ")
+	if err == nil {
+		return string(jsonBytes), nil
 	}
 	return out.String(), nil
 }

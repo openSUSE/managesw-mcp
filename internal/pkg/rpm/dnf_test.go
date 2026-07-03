@@ -1,6 +1,7 @@
 package rpm
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -199,7 +200,15 @@ func TestDnfInstallPackage(t *testing.T) {
 	dnfMock := `#!/bin/sh
 # Log all args to a file to verify correct flags are passed
 echo "$@" >> "` + env.GetPath("dnf_args.log") + `"
-echo "Installing package test-pkg..."
+echo "Installing:"
+echo " test-pkg                      x86_64           1.2.3-1           fedora         10 k"
+echo "Installing dependencies:"
+echo " other-pkg                     noarch           2.0.0-1           fedora          5 k"
+echo "Installing weak dependencies:"
+echo " weak-pkg                      noarch           3.0.0-1           fedora          5 k"
+echo "Transaction Summary"
+echo "================================================================================"
+echo "Install  3 Packages"
 `
 	env.WriteFile("bin/dnf", dnfMock)
 	err := os.Chmod(env.GetPath("bin/dnf"), 0755)
@@ -212,7 +221,23 @@ echo "Installing package test-pkg..."
 		Name: "test-pkg",
 	})
 	require.NoError(t, err)
-	assert.Contains(t, output, "Installing package test-pkg...")
+	
+	// Parse the output as structured JSON
+	var result syspackage.InstallResult
+	err = json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err)
+
+	assert.Len(t, result.Installed, 1)
+	assert.Equal(t, "test-pkg", result.Installed[0].Name)
+	assert.Equal(t, "1.2.3-1", result.Installed[0].Version)
+
+	assert.Len(t, result.Dependencies, 1)
+	assert.Equal(t, "other-pkg", result.Dependencies[0].Name)
+	assert.Equal(t, "2.0.0-1", result.Dependencies[0].Version)
+
+	assert.Len(t, result.Recommended, 1)
+	assert.Equal(t, "weak-pkg", result.Recommended[0].Name)
+	assert.Equal(t, "3.0.0-1", result.Recommended[0].Version)
 
 	// Case 2: Install with NoRecommends set to true
 	_, err = rpm.InstallPackageSysCall(nil, nil, syspackage.InstallPackageParams{
@@ -247,7 +272,12 @@ func TestZypperInstallPackage(t *testing.T) {
 	zypperMock := `#!/bin/sh
 # Log all args to a file to verify correct flags are passed
 echo "$@" >> "` + env.GetPath("zypper_args.log") + `"
-echo "Installing package test-pkg..."
+echo "The following NEW packages are going to be installed:"
+echo "  test-pkg  1.2.3-1"
+echo "  child-pkg  2.0.0-1"
+echo ""
+echo "The following recommended packages were automatically selected:"
+echo "  rec-pkg  3.0.0-1"
 `
 	env.WriteFile("bin/zypper", zypperMock)
 	err := os.Chmod(env.GetPath("bin/zypper"), 0755)
@@ -260,7 +290,23 @@ echo "Installing package test-pkg..."
 		Name: "test-pkg",
 	})
 	require.NoError(t, err)
-	assert.Contains(t, output, "Installing package test-pkg...")
+	
+	// Parse the output as structured JSON
+	var result syspackage.InstallResult
+	err = json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err)
+
+	assert.Len(t, result.Installed, 1)
+	assert.Equal(t, "test-pkg", result.Installed[0].Name)
+	assert.Equal(t, "1.2.3-1", result.Installed[0].Version)
+
+	assert.Len(t, result.Dependencies, 1)
+	assert.Equal(t, "child-pkg", result.Dependencies[0].Name)
+	assert.Equal(t, "2.0.0-1", result.Dependencies[0].Version)
+
+	assert.Len(t, result.Recommended, 1)
+	assert.Equal(t, "rec-pkg", result.Recommended[0].Name)
+	assert.Equal(t, "3.0.0-1", result.Recommended[0].Version)
 
 	// Case 2: Install with NoRecommends set to true
 	_, err = rpm.InstallPackageSysCall(nil, nil, syspackage.InstallPackageParams{

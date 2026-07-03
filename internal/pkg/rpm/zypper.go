@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 
@@ -265,6 +266,8 @@ func (rpm RPM) installPackageZypper(ctx context.Context, request *mcp.CallToolRe
 	}
 	if params.NoRecommends {
 		args = append(args, "--no-recommends")
+	} else {
+		args = append(args, "--recommends")
 	}
 	pkg := params.Name
 	if params.Version != "" {
@@ -308,6 +311,11 @@ func (rpm RPM) installPackageZypper(ctx context.Context, request *mcp.CallToolRe
 	err = cmd.Wait()
 	if err != nil {
 		return out.String(), fmt.Errorf("zypper install failed: %w, output: %s", err, out.String())
+	}
+	parsed := syspackage.ParseZypperInstallOutput(out.String(), params.Name)
+	jsonBytes, err := json.MarshalIndent(parsed, "", "  ")
+	if err == nil {
+		return string(jsonBytes), nil
 	}
 	return out.String(), nil
 }

@@ -1,9 +1,11 @@
 package syspackage
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -337,11 +339,11 @@ func (sysPkg SysPackage) SearchPackage(ctx context.Context, request *mcp.CallToo
 }
 
 type InstallPackageParams struct {
-	Name        string `json:"name" jsonschema:"Name of the package to install."`
-	Version     string `json:"version,omitempty" jsonschema:"Version of the package to install, only needed if alternate version is wanted."`
-	FromRepo    string `json:"repo,omitempty" jsonschema:"Repository to install from."`
+	Name         string `json:"name" jsonschema:"Name of the package to install."`
+	Version      string `json:"version,omitempty" jsonschema:"Version of the package to install, only needed if alternate version is wanted."`
+	FromRepo     string `json:"repo,omitempty" jsonschema:"Repository to install from."`
 	NoRecommends bool   `json:"no_recommends,omitempty" jsonschema:"Do not install recommended packages."`
-	ShowDetails bool   `json:"show_details,omitempty" jsonschema:"Show which additional packages would be installed, which gives an overview of how much space will consumed."`
+	ShowDetails  bool   `json:"show_details,omitempty" jsonschema:"Show which additional packages would be installed, which gives an overview of how much space will consumed. Doesn't install the package."`
 }
 
 func (sysPkg SysPackage) InstallPackage(ctx context.Context, request *mcp.CallToolRequest, params InstallPackageParams) (*mcp.CallToolResult, any, error) {
@@ -397,4 +399,136 @@ func (sysPkg SysPackage) UpdatePackage(ctx context.Context, request *mcp.CallToo
 			},
 		},
 	}, nil, nil
+}
+
+type PackageInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type InstallResult struct {
+	Installed    []PackageInfo `json:"installed"`
+	Dependencies []PackageInfo `json:"dependencies"`
+	Recommended  []PackageInfo `json:"recommended"`
+	RawOutput    string        `json:"raw_output"`
+}
+
+func ParseZypperInstallOutput(output string, requestedPkg string) InstallResult {
+	res := InstallResult{
+		Installed:    []PackageInfo{},
+		Dependencies: []PackageInfo{},
+		Recommended:  []PackageInfo{},
+		RawOutput:    output,
+	}
+
+	cleanRequestedPkg := requestedPkg
+	if idx := strings.Index(cleanRequestedPkg, "="); idx != -1 {
+		cleanRequestedPkg = cleanRequestedPkg[:idx]
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	currentSection := ""
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.ToLower(strings.TrimSpace(line))
+
+		if strings.Contains(line, "new packages are going to be installed:") {
+			currentSection = "new"
+			continue
+		} else if strings.Contains(line, "recommended packages were automatically selected:") || strings.Contains(line, "recommended packages to install:") {
+			currentSection = "recommended"
+			continue
+		} else if strings.Contains(line, "packages are going to be upgraded:") {
+			currentSection = "upgrade"
+			continue
+		} else if trimmed == "" || (!strings.HasPrefix(line, "  ") && trimmed != "") {
+			if currentSection != "" && !strings.HasPrefix(line, "  ") {
+				currentSection = ""
+			}
+		}
+
+		if currentSection != "" && strings.HasPrefix(line, "  ") && trimmed != "" {
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 2 {
+				pkgName := fields[0]
+				version := fields[1]
+				pkg := PackageInfo{Name: pkgName, Version: version}
+
+				switch currentSection {
+				case "new", "upgrade":
+					if pkgName == cleanRequestedPkg {
+						res.Installed = append(res.Installed, pkg)
+					} else {
+						res.Dependencies = append(res.Dependencies, pkg)
+					}
+				case "recommended":
+					res.Recommended = append(res.Recommended, pkg)
+				}
+			}
+		}
+	}
+	return res
+}
+
+func ParseDnfInstallOutput(output string, requestedPkg string) InstallResult {
+	res := InstallResult{
+		Installed:    []PackageInfo{},
+		Dependencies: []PackageInfo{},
+		Recommended:  []PackageInfo{},
+		RawOutput:    output,
+	}
+
+	cleanRequestedPkg := requestedPkg
+	if idx := strings.Index(cleanRequestedPkg, "="); idx != -1 {
+		cleanRequestedPkg = cleanRequestedPkg[:idx]
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	currentSection := ""
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.ToLower(strings.TrimSpace(line))
+
+		if trimmed == "installing:" {
+			currentSection = "installing"
+			continue
+		} else if trimmed == "installing dependencies:" {
+			currentSection = "dependencies"
+			continue
+		} else if trimmed == "installing weak dependencies:" {
+			currentSection = "recommended"
+			continue
+		} else if trimmed == "upgrading:" {
+			currentSection = "upgrading"
+			continue
+		} else if trimmed == "transaction summary" || strings.HasPrefix(trimmed, "====") {
+			currentSection = ""
+			continue
+		}
+
+		if currentSection != "" && strings.HasPrefix(line, " ") && trimmed != "" {
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 3 {
+				pkgName := fields[0]
+				version := fields[2]
+				pkg := PackageInfo{Name: pkgName, Version: version}
+
+				switch currentSection {
+				case "installing", "upgrading":
+					if pkgName == cleanRequestedPkg || strings.HasPrefix(cleanRequestedPkg, pkgName) {
+						res.Installed = append(res.Installed, pkg)
+					} else {
+						res.Dependencies = append(res.Dependencies, pkg)
+					}
+				case "dependencies":
+					res.Dependencies = append(res.Dependencies, pkg)
+				case "recommended":
+					res.Recommended = append(res.Recommended, pkg)
+				}
+			}
+		}
+	}
+	return res
 }
