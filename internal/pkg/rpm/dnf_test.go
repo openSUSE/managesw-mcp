@@ -320,8 +320,8 @@ echo "  rec-pkg  3.0.0-1"
 	require.NoError(t, err)
 	argsStr := string(argsLog)
 	
-	// Default: NoRecommends is false, so --no-recommends should NOT be present for test-pkg
-	assert.Contains(t, argsStr, "install test-pkg")
+	// Default: NoRecommends is false, so --no-recommends should NOT be present, but --recommends should be present for test-pkg
+	assert.Contains(t, argsStr, "install --recommends test-pkg")
 	assert.NotContains(t, argsStr, "--no-recommends test-pkg")
 
 	// NoRecommends: true -> --no-recommends should be present

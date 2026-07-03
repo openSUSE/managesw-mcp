@@ -431,15 +431,15 @@ func ParseZypperInstallOutput(output string, requestedPkg string) InstallResult 
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		trimmed := strings.ToLower(strings.TrimSpace(line))
+		trimmed := strings.TrimSpace(line)
 
-		if strings.Contains(line, "new packages are going to be installed:") {
+		if strings.Contains(line, "NEW packages are going to be installed:") {
 			currentSection = "new"
 			continue
 		} else if strings.Contains(line, "recommended packages were automatically selected:") || strings.Contains(line, "recommended packages to install:") {
 			currentSection = "recommended"
 			continue
-		} else if strings.Contains(line, "packages are going to be upgraded:") {
+		} else if strings.Contains(line, "packages are going to be UPGRADED:") {
 			currentSection = "upgrade"
 			continue
 		} else if trimmed == "" || (!strings.HasPrefix(line, "  ") && trimmed != "") {
@@ -457,7 +457,7 @@ func ParseZypperInstallOutput(output string, requestedPkg string) InstallResult 
 
 				switch currentSection {
 				case "new", "upgrade":
-					if pkgName == cleanRequestedPkg {
+					if strings.EqualFold(pkgName, cleanRequestedPkg) {
 						res.Installed = append(res.Installed, pkg)
 					} else {
 						res.Dependencies = append(res.Dependencies, pkg)
@@ -489,21 +489,22 @@ func ParseDnfInstallOutput(output string, requestedPkg string) InstallResult {
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		trimmed := strings.ToLower(strings.TrimSpace(line))
+		trimmed := strings.TrimSpace(line)
+		trimmedLower := strings.ToLower(trimmed)
 
-		if trimmed == "installing:" {
+		if trimmedLower == "installing:" {
 			currentSection = "installing"
 			continue
-		} else if trimmed == "installing dependencies:" {
+		} else if trimmedLower == "installing dependencies:" {
 			currentSection = "dependencies"
 			continue
-		} else if trimmed == "installing weak dependencies:" {
+		} else if trimmedLower == "installing weak dependencies:" {
 			currentSection = "recommended"
 			continue
-		} else if trimmed == "upgrading:" {
+		} else if trimmedLower == "upgrading:" {
 			currentSection = "upgrading"
 			continue
-		} else if trimmed == "transaction summary" || strings.HasPrefix(trimmed, "====") {
+		} else if trimmedLower == "transaction summary" || strings.HasPrefix(trimmedLower, "====") {
 			currentSection = ""
 			continue
 		}
@@ -517,7 +518,7 @@ func ParseDnfInstallOutput(output string, requestedPkg string) InstallResult {
 
 				switch currentSection {
 				case "installing", "upgrading":
-					if pkgName == cleanRequestedPkg || strings.HasPrefix(cleanRequestedPkg, pkgName) {
+					if strings.EqualFold(pkgName, cleanRequestedPkg) || strings.HasPrefix(strings.ToLower(cleanRequestedPkg), strings.ToLower(pkgName)) {
 						res.Installed = append(res.Installed, pkg)
 					} else {
 						res.Dependencies = append(res.Dependencies, pkg)
