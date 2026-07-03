@@ -1,10 +1,14 @@
 package rpm
 
 import (
+	"bufio"
+	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 
 	"github.com/beevik/etree"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
@@ -250,7 +254,7 @@ func (rpm RPM) installPatchesZypper(params syspackage.InstallPatchesParams) ([]m
 	return result, nil
 }
 
-func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (string, error) {
+func (rpm RPM) installPackageZypper(ctx context.Context, request *mcp.CallToolRequest, params syspackage.InstallPackageParams) (string, error) {
 	args := rpm.zypperArgs()
 	args = append(args, "--non-interactive", "install")
 	if params.ShowDetails {
@@ -259,20 +263,53 @@ func (rpm RPM) installPackageZypper(params syspackage.InstallPackageParams) (str
 	if params.FromRepo != "" {
 		args = append(args, "--from", params.FromRepo)
 	}
-	if params.WithRecommended {
-		args = append(args, "--with-recommended")
+	if params.NoRecommends {
+		args = append(args, "--no-recommends")
 	}
 	pkg := params.Name
 	if params.Version != "" {
 		pkg = fmt.Sprintf("%s=%s", params.Name, params.Version)
 	}
 	args = append(args, pkg)
-	cmd := exec.Command(rpm.mgr.mgrpath, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return string(output), fmt.Errorf("zypper install failed: %w, output: %s", err, string(output))
+	var cmd *exec.Cmd
+	if ctx != nil {
+		cmd = exec.CommandContext(ctx, rpm.mgr.mgrpath, args...)
+	} else {
+		cmd = exec.Command(rpm.mgr.mgrpath, args...)
 	}
-	return string(output), nil
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+	cmd.Stderr = cmd.Stdout
+
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	var out bytes.Buffer
+	var progressToken any
+	if request != nil && request.Params != nil {
+		progressToken = request.Params.GetProgressToken()
+	}
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		out.WriteString(line)
+		out.WriteString("\n")
+		if progressToken != nil && request != nil && request.Session != nil {
+			_ = request.Session.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
+				ProgressToken: progressToken,
+				Message:       line,
+			})
+		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return out.String(), fmt.Errorf("zypper install failed: %w, output: %s", err, out.String())
+	}
+	return out.String(), nil
 }
 
 func (rpm RPM) removePackageZypper(params syspackage.RemovePackageParams) (string, error) {

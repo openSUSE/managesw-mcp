@@ -3,10 +3,12 @@ package rpm
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
@@ -195,7 +197,7 @@ func (rpm RPM) searchPackagesDnf(params syspackage.SearchPackageParams) (map[str
 	return result, nil
 }
 
-func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string, error) {
+func (rpm RPM) installPackageDnf(ctx context.Context, request *mcp.CallToolRequest, params syspackage.InstallPackageParams) (string, error) {
 	args := []string{}
 	if rpm.root != "" {
 		args = append(args, "--root", rpm.root)
@@ -209,22 +211,55 @@ func (rpm RPM) installPackageDnf(params syspackage.InstallPackageParams) (string
 	if params.FromRepo != "" {
 		args = append(args, "--repo", params.FromRepo)
 	}
-	if params.WithRecommended {
-		args = append(args, "--setopt=install_weak_deps=True")
-	} else {
+	if params.NoRecommends {
 		args = append(args, "--setopt=install_weak_deps=False")
+	} else {
+		args = append(args, "--setopt=install_weak_deps=True")
 	}
 	pkg := params.Name
 	if params.Version != "" {
 		pkg = fmt.Sprintf("%s-%s", params.Name, params.Version)
 	}
 	args = append(args, pkg)
-	cmd := exec.Command(rpm.mgr.mgrpath, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return string(output), fmt.Errorf("dnf install failed: %w, output: %s", err, string(output))
+	var cmd *exec.Cmd
+	if ctx != nil {
+		cmd = exec.CommandContext(ctx, rpm.mgr.mgrpath, args...)
+	} else {
+		cmd = exec.Command(rpm.mgr.mgrpath, args...)
 	}
-	return string(output), nil
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+	cmd.Stderr = cmd.Stdout
+
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+
+	var out bytes.Buffer
+	var progressToken any
+	if request != nil && request.Params != nil {
+		progressToken = request.Params.GetProgressToken()
+	}
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		out.WriteString(line)
+		out.WriteString("\n")
+		if progressToken != nil && request != nil && request.Session != nil {
+			_ = request.Session.NotifyProgress(ctx, &mcp.ProgressNotificationParams{
+				ProgressToken: progressToken,
+				Message:       line,
+			})
+		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return out.String(), fmt.Errorf("dnf install failed: %w, output: %s", err, out.String())
+	}
+	return out.String(), nil
 }
 
 func (rpm RPM) removePackageDnf(params syspackage.RemovePackageParams) (string, error) {

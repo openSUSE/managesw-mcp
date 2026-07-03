@@ -32,7 +32,7 @@ type SysPackageInterface interface {
 	ListPatchesSysCall(params ListPatchesParams) ([]map[string]any, error)
 	InstallPatchesSysCall(params InstallPatchesParams) ([]map[string]any, error)
 	SearchPackageSysCall(params SearchPackageParams) (any, error)
-	InstallPackageSysCall(params InstallPackageParams) (string, error)
+	InstallPackageSysCall(ctx context.Context, request *mcp.CallToolRequest, params InstallPackageParams) (string, error)
 	RemovePackageSysCall(params RemovePackageParams) (string, error)
 	UpdatePackageSysCall(params UpdatePackageParams) (string, error)
 	PkgType() string
@@ -337,15 +337,15 @@ func (sysPkg SysPackage) SearchPackage(ctx context.Context, request *mcp.CallToo
 }
 
 type InstallPackageParams struct {
-	Name            string `json:"name" jsonschema:"Name of the package to install."`
-	Version         string `json:"version,omitempty" jsonschema:"Version of the package to install, only needed if alternate version is wanted."`
-	FromRepo        string `json:"repo,omitempty" jsonschema:"Repository to install from."`
-	WithRecommended bool   `json:"with_recommended,omitempty" jsonschema:"Install recommended packages. These are packages not directly needed, but useful for the package to be functioning."`
-	ShowDetails     bool   `json:"show_details,omitempty" jsonschema:"Show which additional packages would be installed, which gives an overview of how much space will consumed."`
+	Name        string `json:"name" jsonschema:"Name of the package to install."`
+	Version     string `json:"version,omitempty" jsonschema:"Version of the package to install, only needed if alternate version is wanted."`
+	FromRepo    string `json:"repo,omitempty" jsonschema:"Repository to install from."`
+	NoRecommends bool   `json:"no_recommends,omitempty" jsonschema:"Do not install recommended packages."`
+	ShowDetails bool   `json:"show_details,omitempty" jsonschema:"Show which additional packages would be installed, which gives an overview of how much space will consumed."`
 }
 
 func (sysPkg SysPackage) InstallPackage(ctx context.Context, request *mcp.CallToolRequest, params InstallPackageParams) (*mcp.CallToolResult, any, error) {
-	output, err := sysPkg.SysPackageInterface.InstallPackageSysCall(params)
+	output, err := sysPkg.SysPackageInterface.InstallPackageSysCall(ctx, request, params)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -183,3 +183,101 @@ fi
 	require.NoError(t, err)
 	assert.Empty(t, repos)
 }
+
+func TestDnfInstallPackage(t *testing.T) {
+	env := testenv.New(t)
+	defer env.RemoveAll()
+
+	binDir := env.GetPath("bin")
+	env.MkdirAll("bin")
+
+	oldPath := os.Getenv("PATH")
+	os.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
+	defer os.Setenv("PATH", oldPath)
+
+	// Mock dnf to simulate install commands and verify weak deps configuration
+	dnfMock := `#!/bin/sh
+# Log all args to a file to verify correct flags are passed
+echo "$@" >> "` + env.GetPath("dnf_args.log") + `"
+echo "Installing package test-pkg..."
+`
+	env.WriteFile("bin/dnf", dnfMock)
+	err := os.Chmod(env.GetPath("bin/dnf"), 0755)
+	require.NoError(t, err)
+
+	rpm := NewRPMTest("rpm", Dnf, env.GetPath("bin/dnf"), "")
+
+	// Case 1: Default install (should install weak deps, meaning NoRecommends is false by default)
+	output, err := rpm.InstallPackageSysCall(nil, nil, syspackage.InstallPackageParams{
+		Name: "test-pkg",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, output, "Installing package test-pkg...")
+
+	// Case 2: Install with NoRecommends set to true
+	_, err = rpm.InstallPackageSysCall(nil, nil, syspackage.InstallPackageParams{
+		Name:         "test-pkg-no-rec",
+		NoRecommends: true,
+	})
+	require.NoError(t, err)
+
+	// Verify the arguments passed to dnf mock
+	argsLog, err := os.ReadFile(env.GetPath("dnf_args.log"))
+	require.NoError(t, err)
+	argsStr := string(argsLog)
+	
+	// Default: NoRecommends: false -> --setopt=install_weak_deps=True
+	assert.Contains(t, argsStr, "install -y --setopt=install_weak_deps=True test-pkg")
+	// NoRecommends: true -> --setopt=install_weak_deps=False
+	assert.Contains(t, argsStr, "install -y --setopt=install_weak_deps=False test-pkg-no-rec")
+}
+
+func TestZypperInstallPackage(t *testing.T) {
+	env := testenv.New(t)
+	defer env.RemoveAll()
+
+	binDir := env.GetPath("bin")
+	env.MkdirAll("bin")
+
+	oldPath := os.Getenv("PATH")
+	os.Setenv("PATH", binDir+string(os.PathListSeparator)+oldPath)
+	defer os.Setenv("PATH", oldPath)
+
+	// Mock zypper to simulate install commands and verify recommends configuration
+	zypperMock := `#!/bin/sh
+# Log all args to a file to verify correct flags are passed
+echo "$@" >> "` + env.GetPath("zypper_args.log") + `"
+echo "Installing package test-pkg..."
+`
+	env.WriteFile("bin/zypper", zypperMock)
+	err := os.Chmod(env.GetPath("bin/zypper"), 0755)
+	require.NoError(t, err)
+
+	rpm := NewRPMTest("rpm", Zypper, env.GetPath("bin/zypper"), "")
+
+	// Case 1: Default install (should install recommended packages by default, so --no-recommends is NOT passed)
+	output, err := rpm.InstallPackageSysCall(nil, nil, syspackage.InstallPackageParams{
+		Name: "test-pkg",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, output, "Installing package test-pkg...")
+
+	// Case 2: Install with NoRecommends set to true
+	_, err = rpm.InstallPackageSysCall(nil, nil, syspackage.InstallPackageParams{
+		Name:         "other-pkg",
+		NoRecommends: true,
+	})
+	require.NoError(t, err)
+
+	// Verify the arguments passed to zypper mock
+	argsLog, err := os.ReadFile(env.GetPath("zypper_args.log"))
+	require.NoError(t, err)
+	argsStr := string(argsLog)
+	
+	// Default: NoRecommends is false, so --no-recommends should NOT be present for test-pkg
+	assert.Contains(t, argsStr, "install test-pkg")
+	assert.NotContains(t, argsStr, "--no-recommends test-pkg")
+
+	// NoRecommends: true -> --no-recommends should be present
+	assert.Contains(t, argsStr, "install --no-recommends other-pkg")
+}

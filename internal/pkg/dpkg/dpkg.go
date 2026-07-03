@@ -3,6 +3,7 @@ package dpkg
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
@@ -592,7 +594,7 @@ func (dpkg DPKG) SearchPackageSysCall(params syspackage.SearchPackageParams) (an
 	return result, nil
 }
 
-func (dpkg DPKG) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {
+func (dpkg DPKG) InstallPackageSysCall(ctx context.Context, request *mcp.CallToolRequest, params syspackage.InstallPackageParams) (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 

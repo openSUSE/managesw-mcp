@@ -1,8 +1,10 @@
 package nopkgs
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
@@ -38,7 +40,7 @@ func (n NoPkg) SearchPackageSysCall(params syspackage.SearchPackageParams) (any,
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (n NoPkg) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {
+func (n NoPkg) InstallPackageSysCall(ctx context.Context, request *mcp.CallToolRequest, params syspackage.InstallPackageParams) (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 

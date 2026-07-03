@@ -3,12 +3,14 @@ package rpm
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/suse/managesw-mcp/internal/pkg/syspackage"
 )
 
@@ -366,12 +368,12 @@ func (rpm RPM) SearchPackageSysCall(params syspackage.SearchPackageParams) (any,
 	}
 }
 
-func (rpm RPM) InstallPackageSysCall(params syspackage.InstallPackageParams) (string, error) {
+func (rpm RPM) InstallPackageSysCall(ctx context.Context, request *mcp.CallToolRequest, params syspackage.InstallPackageParams) (string, error) {
 	switch rpm.mgr.mgrtype {
 	case Zypper:
-		return rpm.installPackageZypper(params)
+		return rpm.installPackageZypper(ctx, request, params)
 	case Dnf:
-		return rpm.installPackageDnf(params)
+		return rpm.installPackageDnf(ctx, request, params)
 	default:
 		return "", fmt.Errorf("No rpm package manager installed")
 	}
