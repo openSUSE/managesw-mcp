@@ -56,3 +56,25 @@ func TestCreateSearchPackageSchema(t *testing.T) {
 	assert.NotNil(t, schemaMock.Properties["repos"].Items)
 	assert.Equal(t, []any{"repo1", "repo2", "repo3"}, schemaMock.Properties["repos"].Items.Enum)
 }
+
+func TestCreateInstallPackageSchema(t *testing.T) {
+	// Case 1: NoPkg
+	sysPkgNoPkg := syspackage.SysPackage{
+		SysPackageInterface: &nopkgs.NoPkg{},
+	}
+	schema, err := sysPkgNoPkg.CreateInstallPackageSchema()
+	assert.NoError(t, err)
+	assert.NotNil(t, schema)
+	assert.Contains(t, schema.Properties, "repo")
+	assert.Empty(t, schema.Properties["repo"].Enum)
+
+	// Case 2: Mock with repos
+	sysPkgMock := syspackage.SysPackage{
+		SysPackageInterface: &mockSysPackage{},
+	}
+	schemaMock, err := sysPkgMock.CreateInstallPackageSchema()
+	assert.NoError(t, err)
+	assert.NotNil(t, schemaMock)
+	assert.Contains(t, schemaMock.Properties, "repo")
+	assert.Equal(t, []any{"repo1", "repo2", "repo3"}, schemaMock.Properties["repo"].Enum)
+}

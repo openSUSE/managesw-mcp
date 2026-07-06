@@ -60,9 +60,11 @@ func main() {
 		Description: "Search for a package in the enabled repositories. Wildcards are supported.",
 		InputSchema: searchSchema,
 	}, packageMgr.SearchPackage)
+	installSchema, _ := packageMgr.CreateInstallPackageSchema()
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "install_package",
 		Description: "Install a package and its dependencies on the system from the online repositories.",
+		InputSchema: installSchema,
 	}, packageMgr.InstallPackage)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "remove_package",

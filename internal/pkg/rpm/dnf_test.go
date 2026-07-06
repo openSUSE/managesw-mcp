@@ -221,7 +221,7 @@ echo "Install  3 Packages"
 		Name: "test-pkg",
 	})
 	require.NoError(t, err)
-	
+
 	// Parse the output as structured JSON
 	var result syspackage.InstallResult
 	err = json.Unmarshal([]byte(output), &result)
@@ -250,7 +250,7 @@ echo "Install  3 Packages"
 	argsLog, err := os.ReadFile(env.GetPath("dnf_args.log"))
 	require.NoError(t, err)
 	argsStr := string(argsLog)
-	
+
 	// Default: NoRecommends: false -> --setopt=install_weak_deps=True
 	assert.Contains(t, argsStr, "install -y --setopt=install_weak_deps=True test-pkg")
 	// NoRecommends: true -> --setopt=install_weak_deps=False
@@ -290,7 +290,7 @@ echo "  rec-pkg  3.0.0-1"
 		Name: "test-pkg",
 	})
 	require.NoError(t, err)
-	
+
 	// Parse the output as structured JSON
 	var result syspackage.InstallResult
 	err = json.Unmarshal([]byte(output), &result)
@@ -319,7 +319,7 @@ echo "  rec-pkg  3.0.0-1"
 	argsLog, err := os.ReadFile(env.GetPath("zypper_args.log"))
 	require.NoError(t, err)
 	argsStr := string(argsLog)
-	
+
 	// Default: NoRecommends is false, so --no-recommends should NOT be present, but --recommends should be present for test-pkg
 	assert.Contains(t, argsStr, "install --recommends test-pkg")
 	assert.NotContains(t, argsStr, "--no-recommends test-pkg")

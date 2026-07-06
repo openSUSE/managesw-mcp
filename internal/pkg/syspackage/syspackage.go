@@ -303,6 +303,40 @@ func (sysPkg SysPackage) CreateSearchPackageSchema() (*jsonschema.Schema, error)
 	return inputSchema, nil
 }
 
+func (sysPkg SysPackage) CreateInstallPackageSchema() (*jsonschema.Schema, error) {
+	inputSchema, err := jsonschema.For[InstallPackageParams](nil)
+	if err != nil {
+		return nil, err
+	}
+	repos, err := sysPkg.ListReposSysCall("")
+	if err != nil || len(repos) == 0 {
+		return inputSchema, nil
+	}
+
+	var validList []any
+	for _, repo := range repos {
+		var id string
+		if v, ok := repo["alias"].(string); ok {
+			id = v
+		} else if v, ok := repo["Repo-id"].(string); ok {
+			id = v
+		} else if v, ok := repo["id"].(string); ok {
+			id = v
+		}
+		if id != "" {
+			validList = append(validList, id)
+		}
+	}
+
+	if len(validList) > 0 {
+		if inputSchema.Properties["repo"] != nil {
+			inputSchema.Properties["repo"].Enum = validList
+		}
+	}
+
+	return inputSchema, nil
+}
+
 func (sysPkg SysPackage) CreateListPackageSchema() (*jsonschema.Schema, error) {
 	inputSchema, err := jsonschema.For[ListPackageParams](nil)
 	if err != nil {
